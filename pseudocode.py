@@ -11,13 +11,13 @@ def graftMatches(matches):
 
         next if annotationsNotAvailable
 
-        pthrAlignLength = get_alignment_lenght  # from file "pantherdir/pathr_id.AN.fasta"
+        pthrAlignLength = get_alignment_lenght  # from file "pantherdir/{pathr}.AN.fasta"
 
         for query_id, matchdata in matches.pathr.items():
             # query_id=>matchdata is a match sub dictinary for a panther family
             querymsf = _querymsf(query_id, matchdata, pthrAlignLength)
 
-            # queryfasta = _generateFasta()
+            queryfasta = _generateFasta(pathr, query_id, querymsf)
 
 
 
@@ -71,7 +71,23 @@ def _querymsf(query_id, matchdata, pthrAlignLength):
     return querymsf
 
 
-# def _generateFasta():
+def _generateFasta(pathr, query_id, querymsf):
+
+    # replace special chars with underscore
+    query_id=re.sub('[^\w]', '_', query_id)
+
+    # write out query fasta
+    queryfasta = open(args[directory]."/tmp/{queryid}.{pathr}.fasta", 'w')
+    queryfasta.write('>' . query_id . "\n")
+    queryfasta.write(querymsf . "\n") # original split into 80 char lines
+
+    # read in align msf
+    hmmalignmsf = open(args[pantherdir]."/{pathr}.AN.fasta", 'r')
+    # and write out to query fasta
+    for line in hmmalignmsf.readlines():
+        queryfasta.write(line)
+
+    return queryfasta
 
 
 
