@@ -29,7 +29,7 @@ def _querymsf(query_id, matchdata, pthrAlignLength):
     # N-terminaly padd the sequence
     # position 1 until start is filled with '-'
     start = matchdata[hmmstart][0]
-    querymsf .= (start - 1 ) x '-'
+    querymsf .= (start - 1 ) * '-'
 
 
     #For the first element/domain, extract the query string
@@ -37,7 +37,7 @@ def _querymsf(query_id, matchdata, pthrAlignLength):
     hmmalign = matchdata[hmmalign][0]
     for i in range(0, len(hmmalign)):
         next if (hmmalign[i:i+1] eq "."))  # hmm insert state
-        querymsf .=matchalign[i:i+1]
+        querymsf .= matchalign[i:i+1]
 
 
     #Now we need to add in any additional domains in the next part
@@ -46,7 +46,7 @@ def _querymsf(query_id, matchdata, pthrAlignLength):
         start = matchdata[hmmstart][j]
         end = matchdata[hmmend][j-1]
         #This bridges the gap between the hits
-        querymsf .= (start - end) x '-'
+        querymsf .= (start - end) * '-'
 
         # repeat logic from first element/domain
         # refactor as a function to reuse
@@ -60,7 +60,7 @@ def _querymsf(query_id, matchdata, pthrAlignLength):
     # get the end of the last element/domain
     prevend=matchdata[hmmend][-1]
     # and padd out to fill the msf lenght
-    querymsf .= (pthrAlignLength -1 - prevend) x '-'
+    querymsf .= (pthrAlignLength -1 - prevend) * '-'
 
     if (len(querymsf) != pthrAlignLength) :
         # then something is wrong
