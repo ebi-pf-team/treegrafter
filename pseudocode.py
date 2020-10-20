@@ -6,6 +6,8 @@ def graftMatches(matches):
     # values a dictionary with the matched seq query_id (eg 
     # 'ARATH|TAIR=AT2G25870|UniProtKB=Q8L5Z4') and values
     # the hmmer output (hmmstart, hmmend, hmmalign and matchalign, all as arrays) 
+    
+    allResults = []
 
     for pathr in matches.keys():
 
@@ -19,6 +21,11 @@ def graftMatches(matches):
 
             queryfasta = _generateFasta(pathr, query_id, querymsf)
 
+            result_string = _runRAxMLAndAnnotate(pathr, queryid, queryfasta)
+
+            allResults.append(result_string) if result_string
+
+    return allResults
 
 
 def _querymsf(query_id, matchdata, pthrAlignLength):
@@ -90,7 +97,53 @@ def _generateFasta(pathr, query_id, querymsf):
     return queryfasta
 
 
+def _runRAxMLAndAnnotate(pathr, queryid, queryfasta):
 
+    # replace special chars with underscore
+    # same as in _generateFasta(), factor out code duplication
+    query_id=re.sub('[^\w]', '_', query_id)
+
+    bifurnewick=args[pantherdir]."/{panthr}.bifurcate.newick"
+    if no bifurnewick dir exists:
+        print("no bifurcate newickfile for {pathr}}\n")
+        return 0
+
+    raxmldir=args[directory]."/tmp/{panthr}_{queryid}_raxml{PID:process id}"
+    os.mkdir(raxmldir)
+
+    # raxml-ng using epa-ng is under development
+    raxml_cmd=args[raxmlloc]."raxmlHPC-PTHREADS-SSE3 -f y -p 12345 -t {bifurnewick} -G 0.05 -m PROTGAMMAWAG -T 4 -s {queryfasta} -n $matchpthr -w {raxmldir} >/dev/null"
+    try:
+        os.system(raxml_cmd)
+    except Exception as e:
+        print("caught error for {pathr}, {queryid}:" e)
+
+    ## now find the location of the graft sequence in the tree
+    mapANs=mapto(raxmldir, pathr, queryid)
+
+    if mapANs == 'root':
+        annotation = args[annotations][{pathr}.":".{mapANs}]
+    else:
+        commonAN = commonancestor(mapANs, pathr)
+        annotation = args[annotations][{pathr}.":".{commonAN}]
+
+    result="{queryid}\t{pathr}\t{annotation}\n"
+
+    return result
+
+
+
+
+# this function retrieves the location of the query sequence in the raxml output
+def mapto(raxmldir, pathr, queryid):
+...
+returns childrenids if any or 'root'
+
+
+# find common ancestor of a list of ANs which are leaf genes
+def commonancestor(mapANs, pathr)
+...
+return commonancestor if any or 'root'
 
 
 def main:
