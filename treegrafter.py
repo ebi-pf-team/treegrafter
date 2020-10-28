@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+
+import re
+
+
+
 def _querymsf(query_id, matchdata, pthrAlignLength):
     # matchdata contains: hmmstart, hmmend, hmmalign and matchalign, as arrays (multiple modules possible)
 
@@ -27,14 +33,13 @@ def _querymsf(query_id, matchdata, pthrAlignLength):
 
             querymsf += matchalign[j:j+1]
 
-
+    # C-terminaly padd the sequence
     # get the end of the last element/domain
     last_end = int(matchdata['hmmend'][-1])
-
     # and padd out to fill the msf lenght
     querymsf += (int(pthrAlignLength) - last_end) * '-'
 
-    # error check
+    # error check (is this required?)
     if (len(querymsf) != pthrAlignLength):
         # then something is wrong
         return 0
@@ -42,6 +47,27 @@ def _querymsf(query_id, matchdata, pthrAlignLength):
     return querymsf.upper()
 
 
+def _generateFasta(pathr, query_id, querymsf):
+
+    # stringify query_id
+    query_id = re.sub('[^\w]', '_', query_id)
+
+    # use static dir paths for testing. these are provided
+    fasta_in_dir = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/PANTHER12_Tree_MSF/'
+    fasta_out_dir = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/tmp/'
+    fasta_out_file = fasta_out_dir + query_id + '.' + pathr + '.fasta'
+
+    with open(fasta_out_file, 'w') as outfile:
+        with open(fasta_in_dir + pathr + '.AN.fasta', 'r') as infile:
+            # print first fasta header
+            outfile.write('>query_' + query_id + '\n')
+            # and the body lines
+            for i in range(0, len(querymsf), 80):
+                outfile.write(querymsf[i:i+80] + '\n')
+            # copy over the other fasta file
+            outfile.write(infile.read())
+
+    return(fasta_out_file)
 
 
 
@@ -112,6 +138,11 @@ if __name__ == '__main__':
 
 
     for test_data in test_input_querymsf:
-       query_msf = _querymsf(next(test_query_id_list), test_data, next(test_lenght))
+        test_query_id = next(test_query_id_list)
 
-       print(query_msf)
+
+        query_msf = _querymsf(test_query_id, test_data, next(test_lenght))
+
+        # print(query_msf)
+
+        fasta_file = _generateFasta('PTHR10000', test_query_id, query_msf)
