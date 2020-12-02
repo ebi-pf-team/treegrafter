@@ -3,14 +3,11 @@
 import re
 import os
 import json
-
-# from newick import Node, loads
-
 from Bio import Phylo
 from Bio.Phylo import NewickIO
-# from StringIO import StringIO
 
-# from Bio.Phylo import NewickIO
+# relative imports
+from tglib.re_matcher import re_matcher
 
 
 def _querymsf(matchdata, pthrAlignLength):
@@ -86,7 +83,7 @@ def _generateFasta(pathr, query_id, querymsf):
 
 def _run_raxml(pathr, query_id, fasta_file):
 
-    print(fasta_file)
+    # print(fasta_file)
 
     pantherdir = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/PANTHER12_Tree_MSF/'
 
@@ -103,21 +100,24 @@ def _run_raxml(pathr, query_id, fasta_file):
     print(exit_status)
 
     mapANs = _mapto(raxml_dir, pathr, query_id)
-    print(mapANs)
+    # print(mapANs)
 
     commonAN = _commonancestor(pathr, mapANs)
-    print(commonAN)
+    # print(commonAN)
 
     # todo: read annotations file to print annotation for panthr:commonAN
     # annotation[pathr:commonAN]
 
     result = query_id + "\t" + pathr + "\t" + pathr + ':' + str(commonAN) + "\n"
-    print(result)
+    # print(result)
+    return(result)
+
+
 
 
 def _mapto(raxml_dir, pathr, query_id):
 
-    print(raxml_dir, pathr, query_id)
+    # print(raxml_dir, pathr, query_id)
 
     classification_file = raxml_dir + '/RAxML_portableTree.' + pathr + '.jplace'
     # print(classification_file)
@@ -199,11 +199,117 @@ def _commonancestor(pathr, mapANs):
 
     return commonancestor
 
-    print('Done')
+
+def parsehmmscan(hmmer_out):
+
+    matches = {}
+    
+
+    with open(hmmer_out) as fp:
+        align_found_n = 0
+        matchpthr = None
+        query_id = None
+
+        line = fp.readline()
+        while line:
+            m = re_matcher(line)
+            # print("Line {}: {}".format(cnt, line.strip()))
+
+            if line.startswith('#') or not line.strip():
+                # print("INSIDE IF 1: {}".format(line.strip()))
+                line = fp.readline()
+                continue
+            elif m.match('\AQuery:\s+(\S+)'):
+                # print("INSIDE IF 2: {}".format(line.strip()))
+                query_id = m.group(1)
+                # print(query_id)
+            elif m.match('\A>> (PTHR[0-9]+)'):
+                align_found_n += 1
+                # print("INSIDE IF 3: {}".format(line.strip()))
+                matchpthr = m.group(1)
+                # print(matchpthr)
+                # print(align_found_n)
+            elif m.match('\s+\d+\s+!') and align_found_n == 1:
+                # print("INSIDE IF 4: {}".format(line.strip()))
+
+                mark = line.split()
+                # print(mark)
+
+                if matchpthr not in matches:
+                    matches[matchpthr] = {}
+                if query_id not in matches[matchpthr]:
+                    matches[matchpthr][query_id] = {}
+                if 'hmmstart' not in matches[matchpthr][query_id]:
+                    matches[matchpthr][query_id]['hmmstart'] = []
+                if 'hmmend' not in matches[matchpthr][query_id]:
+                    matches[matchpthr][query_id]['hmmend'] = []
+
+                matches[matchpthr][query_id]['hmmstart'].append(mark[6])
+                matches[matchpthr][query_id]['hmmend'].append(mark[7])
+
+                # print(matches)
+
+            elif m.match('\s+==') and align_found_n == 1:
+                # print("INSIDE IF 5: {}".format(line.strip()))
+                # query_id = m.group(1)
+                # print(query_id)
+                # print(align_found_n)
+
+                line = fp.readline()
+
+                if 'hmmalign' not in matches[matchpthr][query_id]:
+                    matches[matchpthr][query_id]['hmmalign'] = []
+
+                matches[matchpthr][query_id]['hmmalign'].append(line.split()[2])
+
+                line = fp.readline()
+
+                line = fp.readline()
+                if 'matchalign' not in matches[matchpthr][query_id]:
+                    matches[matchpthr][query_id]['matchalign'] = []
+
+                matches[matchpthr][query_id]['matchalign'].append(
+                    line.split()[2])
+
+                line = fp.readline()
+
+            elif m.match('\A\/\/'):
+                # print("END BLOCK")
+                align_found_n = 0
+                # break
+            # else:
+            #     print("NOT MATCHED: {}".format(line.strip()))
+
+            line = fp.readline()
+
+    fp.close()
+    return(matches)
+
+
+
+
+
+
 
 
 
 if __name__ == '__main__':
+
+    hmmsearch_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmsearch.out'
+    hmmscan_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmscan.out'
+
+    # matches = parsehmmsearch(hmmsearch_file)
+    matches = parsehmmscan(hmmscan_file)
+    print(matches)
+
+
+
+
+
+
+
+
+
 
     test_input_querymsf = [
         {
@@ -277,11 +383,16 @@ if __name__ == '__main__':
 
         query_msf = _querymsf(test_data, next(test_lenght))
 
-        # print(query_msf)
+        print(query_msf)
 
         fasta_file = _generateFasta('PTHR10000', test_query_id_str, query_msf)
 
-        # print(fasta_file)
+        print(fasta_file)
 
         result_string = _run_raxml('PTHR10000', test_query_id_str, fasta_file)
 
+        print(result_string)
+
+
+
+    
