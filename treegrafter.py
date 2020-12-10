@@ -1,17 +1,24 @@
 #!/usr/bin/env python
 
-import re
 import os
+import re
 import json
+import argparse
+import logging
 from Bio import Phylo
 from Bio.Phylo import NewickIO
 
 # relative imports
 from tglib.re_matcher import re_matcher
 
+# options = []
+
+
 
 def _querymsf(matchdata, pthrAlignLength):
+
     # matchdata contains: hmmstart, hmmend, hmmalign and matchalign, as arrays (multiple modules possible)
+
 
     # N-terminaly padd the sequence
     # position 1 until start is filled with '-'
@@ -25,7 +32,7 @@ def _querymsf(matchdata, pthrAlignLength):
             start = int(matchdata['hmmstart'][i])
             end = int(matchdata['hmmend'][i-1])
             # This bridges the query_idgap between the hits
-            querymsf += (start - end) * '-'
+            querymsf += (start - end -1) * '-'
 
         # extract the query string
         matchalign = matchdata['matchalign'][i]
@@ -48,6 +55,12 @@ def _querymsf(matchdata, pthrAlignLength):
     # error check (is this required?)
     if (len(querymsf) != pthrAlignLength):
         # then something is wrong
+
+        print(matchdata)
+        print(querymsf)
+        print(pthrAlignLength)
+        print(len(querymsf))
+
         return 0
 
     return querymsf.upper()
@@ -64,8 +77,8 @@ def stringify(query_id):
 def _generateFasta(pathr, query_id, querymsf):
 
     # use static dir paths for testing. these are provided
-    fasta_in_dir = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/PANTHER12_Tree_MSF/'
-    fasta_out_dir = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/tmp/'
+    fasta_in_dir = options['msf_tree_folder']
+    fasta_out_dir = options['tmp_folder']
     fasta_out_file = fasta_out_dir + query_id + '.' + pathr + '.fasta'
 
     with open(fasta_out_file, 'w') as outfile:
@@ -81,15 +94,15 @@ def _generateFasta(pathr, query_id, querymsf):
     return(fasta_out_file)
 
 
-def _run_raxml(pathr, query_id, fasta_file):
+def _run_raxml(pathr, query_id, fasta_file, annotations):
 
     # print(fasta_file)
 
-    pantherdir = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/PANTHER12_Tree_MSF/'
+    pantherdir = options['msf_tree_folder']
 
     bifurnewick_in = pantherdir + pathr + '.bifurcate.newick'
 
-    raxml_dir = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/tmp/' + \
+    raxml_dir = options['tmp_folder'] + \
         pathr + '_' + query_id + '_raxml' + str(os.getpid())
 
     os.mkdir(raxml_dir)
@@ -97,7 +110,7 @@ def _run_raxml(pathr, query_id, fasta_file):
     exit_status = os.system('raxmlHPC-PTHREADS-SSE3 -f y -p 12345 -t ' + bifurnewick_in +
                             ' -G 0.05 -m PROTGAMMAWAG -T 4 -s ' + fasta_file + ' -n ' + pathr + ' -w ' + raxml_dir + ' >/dev/null')
 
-    print(exit_status)
+    # print(exit_status)
 
     mapANs = _mapto(raxml_dir, pathr, query_id)
     # print(mapANs)
@@ -105,10 +118,12 @@ def _run_raxml(pathr, query_id, fasta_file):
     commonAN = _commonancestor(pathr, mapANs)
     # print(commonAN)
 
-    # todo: read annotations file to print annotation for panthr:commonAN
-    # annotation[pathr:commonAN]
+    if commonAN is None:
+        commonAN = 'root'
 
-    result = query_id + "\t" + pathr + "\t" + pathr + ':' + str(commonAN) + "\n"
+    annot = annotations[pathr + ':' + str(commonAN)]
+    # print(annot)
+    result = query_id + "\t" + pathr + "\t" + annot + "\n"
     # print(result)
     return(result)
 
@@ -187,7 +202,7 @@ def _mapto(raxml_dir, pathr, query_id):
 
 def _commonancestor(pathr, mapANs):
 
-    pantherdir = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/PANTHER12_Tree_MSF/'
+    pantherdir = options['msf_tree_folder']
 
     newick_in = pantherdir + pathr + '.newick'
 
@@ -273,6 +288,14 @@ def parsehmmscan(hmmer_out):
 
                 line = fp.readline()
 
+            elif m.match('\A>> (\S+)'):
+                align_found_n += 1
+                # print("INSIDE IF 3: {}".format(line.strip()))
+                matchpthr = m.group(1)
+                # print(matchpthr)
+                # print(align_found_n)
+
+
             elif m.match('\A\/\/'):
                 # print("END BLOCK")
                 align_found_n = 0
@@ -288,6 +311,94 @@ def parsehmmscan(hmmer_out):
 
 
 
+def get_args():
+    """
+    Command line arguments parser.
+    """
+
+    ap = argparse.ArgumentParser(
+        prog='treegrafter.py', description="TreeGrafter",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    ap.add_argument('-f', '--fasta', required=True,
+        help="input fasta file")
+
+    ap.add_argument(
+        '-hb', '--hbin', default='',
+        help='path to hmmr bin (default PATH)')
+
+    ap.add_argument(
+        '-hm', '--hmode', default='hmmscan', choices=['hmmscan', 'hmmsearch'],
+        help='hmmr mode to use')
+
+    ap.add_argument(
+        '-hc', '--hcpus', default=1, type=int,
+        help="number of hmmr cpus")
+
+    ap.add_argument(
+        '-o', '--out', required=True,
+        help='output file name')
+
+    ap.add_argument(
+        '-d', '--data', required=True,
+        help='panther data directory')
+
+    ap.add_argument(
+        '-t', '--tmp',
+        help='tmp work directory (default tmp folder in provided panther data directory)')
+
+
+
+
+    # ap.add_argument(
+    #     '-rb', '--rbin', default='',
+    #     help='path to RAxML bin (default PATH)')
+
+
+    # parser.add_argument('-l', '--log', type=str, default=None, help='log file')
+    # parser.add_argument("-ll", "--logLevel", default="ERROR",
+    #                     choices=["DEBUG", "INFO",
+    #                              "WARNING", "ERROR", "CRITICAL"],
+    #                     help='log level filter. All levels <= choice will be displayed')
+
+    args = vars(ap.parse_args())
+
+
+    # print(args)
+    return args
+
+
+def align_lenght(pthr):
+    pthr_fasta_file = options['msf_tree_folder'] + pthr + '.AN.fasta'
+
+    try:
+        with open(pthr_fasta_file) as f:
+            file = f.read().split('>')
+            first_seq = file[1]
+            first_seq = re.sub('\A[^\n]+', '', first_seq)
+            first_seq = re.sub('\n', '', first_seq)
+            seq_lenght = len(first_seq)
+    except IOError:
+        print("Could not find alignment for " + pthr)
+        return(0)
+
+    return(seq_lenght)
+
+
+def get_annotations():
+    annot_file = options['data_folder'] + 'PAINT_Annotations/PAINT_Annotatations_TOTAL.txt'
+    # print(annot_file)
+
+    annot = {}
+    with open(annot_file) as f:
+        for line in f:
+            line = line.strip()
+            # print(line)
+            line_array = line.split("\t")
+            # print(line_array)
+            annot[line_array[0]] = line_array[1]
+
+    return annot
 
 
 
@@ -295,12 +406,64 @@ def parsehmmscan(hmmer_out):
 
 if __name__ == '__main__':
 
+    args = get_args()
+
+    global options
+    options = {}
+    options['data_folder'] = os.path.abspath(args['data']) + '/'
+    options['fasta_input'] = args['fasta']
+    options['out_file'] = args['out']
+    options['hmmr_mode'] = args['hmode']
+
+    options['msf_tree_folder'] = options['data_folder'] + 'Tree_MSF/'
+    if args['tmp'] is None:
+        options['tmp_folder'] = options['data_folder'] + 'tmp/'
+    else:
+        options['tmp_folder'] = args['tmp'] + '/'
+    
+
+    # testing
+    # options['msf_tree_folder'] = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/PANTHER12_Tree_MSF/'
+
+    # testing
     hmmsearch_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmsearch.out'
     hmmscan_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmscan.out'
 
     # matches = parsehmmsearch(hmmsearch_file)
     matches = parsehmmscan(hmmscan_file)
-    print(matches)
+    # print(matches)
+
+    annotations = get_annotations()
+    # print(annotations)
+
+    results = []
+
+    for pthr in matches:
+        print(pthr)
+        logging.info('Processing panther id ' + pthr + "...\n")
+
+        pthr_align_lenght = align_lenght(pthr)
+
+
+        for query_id in matches[pthr]:
+            # print(query_id)
+            query_id_str = stringify(query_id)
+            # print(query_id_str)
+            query_msf = _querymsf(matches[pthr][query_id], pthr_align_lenght)
+            # print(query_msf)
+
+            fasta_file = _generateFasta(pthr, query_id_str, query_msf)
+            # print(fasta_file)
+
+            result_string = _run_raxml(pthr, query_id_str, fasta_file, annotations)
+            results.append(result_string)
+            # print(result_string)
+
+    # print(results)
+    file = open(options['out_file'], 'w')
+    for line in results:
+        file.write(line)
+    file.close()
 
 
 
@@ -308,90 +471,87 @@ if __name__ == '__main__':
 
 
 
+    # test_input_querymsf = [
+    #     {
+    #         'hmmalign': [
+    #             'klialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
+    #         ],
+    #         'hmmend': [
+    #             '263'
+    #         ],
+    #         'hmmstart': [
+    #             '8'
+    #         ],
+    #         'matchalign': [
+    #             'LVIFTDIDGTLY-GDFH----IHEAFKRFITNGLFLVYSTGRNLQSFKDLQKNVHLPDILVGSCGSEIYQLGQDEFETNPYNQN--QAWIQYITQDNWDLQALYD-----------FVKKEFP----AAWPNLSEGVSLYKGSFLLTDSRQRDKLDVLMKKAFLNKYIISGHGHRFLDILPERADKGSSLQFVCKILKTDYTKSAAFGDSLNDVDLLCCAGQGFIVANAQSQNQRFQNVKVSYHEGDAIAKYLQQI'
+    #         ]
+    #     }, {
+    #         'hmmalign': [
+    #             'iklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
+    #         ],
+    #         'hmmend': [
+    #             '263'
+    #         ],
+    #         'hmmstart': [
+    #             '7'
+    #         ],
+    #         'matchalign': [
+    #             'YRVFVFDLDGTLLNDNLEISEKDRRNIEKL-SRKCYVVFASGRMLVSTLNVEKKFKRTFPTIAYNGAIVYLPEEGVILNEKIPPEVAKDIIEYIKPLNVHWQAYIDDV---LSKDNEKSYARHSYRVEPNLSELVSKMGTTKLLLIDT-PERLDELKEILSERFKDVVKVFKSFPTYLEIVPKNVDKGKALRFLRERMNWKKEEIVVFGDNENDLFMFEEAGLRVAMENAIEKVKEASDIVTLTNNDSGVSYVLERI'
+    #         ]
+    #     }
+    #     # , {
+    #     #     'hmmalign': [
+    #     #         'kpkiklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakalekyll',
+    #     #         'kpkik'
+    #     #     ],
+    #     #     'hmmend': [
+    #     #         '265',
+    #     #         '275'
+    #     #     ],
+    #     #     'hmmstart': [
+    #     #         '4',
+    #     #         '270'
+    #     #     ],
+    #     #     'matchalign': [
+    #     #         'RMPIKAVVTDLDGTLLDPQHCISNYAAEVLKKIKEKGICFIVATGRPYAEVFNRIRHCHLPDYIITSNGARIHDGAFNVVREHNLRPELVESLARVRTVKDPATNIYRGLT--PEVSAFHTDFQCTDRERFYELQ-ASELGDVHEIWFAGD-HDELVLLDNALREKYPGDLCCTFSLPHLLDCVPAGVNKGNGVREAAEMLGLALDEVACFGDGMNDESMLQVTSTSFIMANAQQRLKAVPHAQIISNADDGVAKKLEEMFF',
+    #     #         'RMPIK'
+    #     #     ]
+    #     # }
+    # ]
+
+    # test_query_id_list = iter([
+    #     'TETTS|EnsemblGenome=TTHERM_00590270|UniProtKB=I7M2B5',
+    #     'THEMA|EnsemblGenome=TM_0651|UniProtKB=Q9WZB9',
+    #     'LEIMA|EnsemblGenome=LmjF.28.1370|UniProtKB=Q4Q8C9',
+    #     'BACTN|EnsemblGenome=BT_4131|UniProtKB=Q8A090',
+    #     'SYNY3|Gene=BAA18460|UniProtKB=P74365'
+    # ])
+
+    # test_lenght = iter([
+    #     266,
+    #     266,
+    #     280,
+    #     266,
+    #     266
+    # ])
+
+    # for test_data in test_input_querymsf:
+    #     test_query_id = next(test_query_id_list)
+
+    #     test_query_id_str = stringify(test_query_id)
 
 
+    #     query_msf = _querymsf(test_data, next(test_lenght))
 
-    test_input_querymsf = [
-        {
-            'hmmalign': [
-                'klialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
-            ],
-            'hmmend': [
-                '263'
-            ],
-            'hmmstart': [
-                '8'
-            ],
-            'matchalign': [
-                'LVIFTDIDGTLY-GDFH----IHEAFKRFITNGLFLVYSTGRNLQSFKDLQKNVHLPDILVGSCGSEIYQLGQDEFETNPYNQN--QAWIQYITQDNWDLQALYD-----------FVKKEFP----AAWPNLSEGVSLYKGSFLLTDSRQRDKLDVLMKKAFLNKYIISGHGHRFLDILPERADKGSSLQFVCKILKTDYTKSAAFGDSLNDVDLLCCAGQGFIVANAQSQNQRFQNVKVSYHEGDAIAKYLQQI'
-            ]
-        }, {
-            'hmmalign': [
-                'iklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
-            ],
-            'hmmend': [
-                '263'
-            ],
-            'hmmstart': [
-                '7'
-            ],
-            'matchalign': [
-                'YRVFVFDLDGTLLNDNLEISEKDRRNIEKL-SRKCYVVFASGRMLVSTLNVEKKFKRTFPTIAYNGAIVYLPEEGVILNEKIPPEVAKDIIEYIKPLNVHWQAYIDDV---LSKDNEKSYARHSYRVEPNLSELVSKMGTTKLLLIDT-PERLDELKEILSERFKDVVKVFKSFPTYLEIVPKNVDKGKALRFLRERMNWKKEEIVVFGDNENDLFMFEEAGLRVAMENAIEKVKEASDIVTLTNNDSGVSYVLERI'
-            ]
-        }
-        # , {
-        #     'hmmalign': [
-        #         'kpkiklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakalekyll',
-        #         'kpkik'
-        #     ],
-        #     'hmmend': [
-        #         '265',
-        #         '275'
-        #     ],
-        #     'hmmstart': [
-        #         '4',
-        #         '270'
-        #     ],
-        #     'matchalign': [
-        #         'RMPIKAVVTDLDGTLLDPQHCISNYAAEVLKKIKEKGICFIVATGRPYAEVFNRIRHCHLPDYIITSNGARIHDGAFNVVREHNLRPELVESLARVRTVKDPATNIYRGLT--PEVSAFHTDFQCTDRERFYELQ-ASELGDVHEIWFAGD-HDELVLLDNALREKYPGDLCCTFSLPHLLDCVPAGVNKGNGVREAAEMLGLALDEVACFGDGMNDESMLQVTSTSFIMANAQQRLKAVPHAQIISNADDGVAKKLEEMFF',
-        #         'RMPIK'
-        #     ]
-        # }
-    ]
+    #     print(query_msf)
 
-    test_query_id_list = iter([
-        'TETTS|EnsemblGenome=TTHERM_00590270|UniProtKB=I7M2B5',
-        'THEMA|EnsemblGenome=TM_0651|UniProtKB=Q9WZB9',
-        'LEIMA|EnsemblGenome=LmjF.28.1370|UniProtKB=Q4Q8C9',
-        'BACTN|EnsemblGenome=BT_4131|UniProtKB=Q8A090',
-        'SYNY3|Gene=BAA18460|UniProtKB=P74365'
-    ])
+    #     fasta_file = _generateFasta('PTHR10000', test_query_id_str, query_msf)
 
-    test_lenght = iter([
-        266,
-        266,
-        280,
-        266,
-        266
-    ])
+    #     print(fasta_file)
 
-    for test_data in test_input_querymsf:
-        test_query_id = next(test_query_id_list)
+    #     result_string = _run_raxml('PTHR10000', test_query_id_str, fasta_file)
 
-        test_query_id_str = stringify(test_query_id)
-
-
-        query_msf = _querymsf(test_data, next(test_lenght))
-
-        print(query_msf)
-
-        fasta_file = _generateFasta('PTHR10000', test_query_id_str, query_msf)
-
-        print(fasta_file)
-
-        result_string = _run_raxml('PTHR10000', test_query_id_str, fasta_file)
-
-        print(result_string)
+    #     print(result_string)
 
 
 
