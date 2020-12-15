@@ -309,6 +309,137 @@ def parsehmmscan(hmmer_out):
     return(matches)
 
 
+def parsehmmsearch(hmmer_out):
+
+    matches = {}
+
+    with open(hmmer_out) as fp:
+        score_store = {}
+
+        match_store = {}
+
+        # match_store['POPTR|EnsemblGenome=POPTR_0018s04850|UniProtKB=B9INH6'] = {}
+        # match_store['POPTR|EnsemblGenome=POPTR_0018s04850|UniProtKB=B9INH6']['score'] = 900
+        # match_store['POPTR|EnsemblGenome=POPTR_0018s04850|UniProtKB=B9INH6']['panther_id'] = 'TEST_PNTR_ID'
+
+        store_align = 0
+
+        matchpthr = None
+        query_id = None
+
+        line = fp.readline()
+        while line:
+            m = re_matcher(line)
+            # print("Line: {}".format(line.strip()))
+
+            if line.startswith('#') or not line.strip():
+                # print("INSIDE IF 1: {}".format(line.strip()))
+                line = fp.readline()
+                continue
+            elif m.match('\AQuery:\s+(PTHR[0-9]+)'):
+                # print("INSIDE IF 2: {}".format(line.strip()))
+                matchpthr = m.group(1)
+                # print(matchpthr)
+
+                fp.readline()
+                fp.readline()
+                fp.readline()
+                fp.readline()
+                line = fp.readline()
+                # print(line)
+
+                while line.strip():
+                    m = re_matcher(line)
+                    if m.match('\s+------\sinclusion\sthreshold'):
+                        # print("INCLUSION THRESHOLD:")
+                        # print(line)
+                        break
+                    
+                    # print("STRIP:")
+                    # print(line)
+                    
+                    score_array = line.split()
+
+                    # curr_query_id = score_array[8]
+                    # # print(curr_query_id)
+                    # curr_score = float(score_array[1])
+                    # # print(curr_score)
+
+                    score_store[score_array[8]] = float(score_array[1])
+
+
+                    line = fp.readline()
+
+                # print("END IF 2:")
+                # print(line)
+
+            elif m.match('\A>>\s+(\S+)'):
+                # print("INSIDE IF 3: {}".format(line.strip()))
+                query_id = m.group(1)
+                store_align = 0
+
+                if not query_id in score_store:
+                    # print("QUERY ID UNDER THRESHOLD")
+                    line = fp.readline()
+                    continue
+    
+                # print(query_id)
+                if query_id not in match_store or score_store[query_id] > match_store[query_id]['score']:
+                    # print("NEED TO STORE MATCH")
+                    store_align = 1
+                    # if query_id not in match_store:
+                    match_store[query_id] = {
+                            'panther_id': matchpthr, 'score': score_store[query_id], 'align': {
+                                'hmmstart': [], 'hmmend': [], 'hmmalign': [], 'matchalign': []
+                            } }
+
+
+
+            elif m.match('\s+==') and store_align:
+                # print("INSIDE IF 4: {}".format(line.strip()))
+
+                line = fp.readline()
+                hmmalign_array = line.split()
+
+                match_store[query_id]['align']['hmmstart'].append(hmmalign_array[1])
+                match_store[query_id]['align']['hmmend'].append(hmmalign_array[3])
+                match_store[query_id]['align']['hmmalign'].append(hmmalign_array[2])
+
+                line = fp.readline()
+
+                line = fp.readline()
+
+                match_store[query_id]['align']['matchalign'].append(line.split()[2])
+
+                line = fp.readline()
+
+            elif m.match('\A\/\/'):
+                # print("END BLOCK")
+                # print(match_store)
+                score_store = {}
+                # BREAK FOR DEBUG
+                # break
+
+            # else:
+            #     print("NOT MATCHED: {}".format(line.strip()))
+
+            line = fp.readline()
+
+    fp.close()
+
+    for query_id in match_store:
+        panther_id = match_store[query_id]['panther_id']
+
+        if panther_id not in matches:
+            matches[panther_id] = {}
+
+        matches[panther_id][query_id] = match_store[query_id]['align']
+
+
+    # print(matches)
+    return(matches)
+
+
 
 
 def get_args():
@@ -426,11 +557,13 @@ if __name__ == '__main__':
     # options['msf_tree_folder'] = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/PANTHER12_Tree_MSF/'
 
     # testing
+
+    
     hmmsearch_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmsearch.out'
     hmmscan_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmscan.out'
 
-    # matches = parsehmmsearch(hmmsearch_file)
-    matches = parsehmmscan(hmmscan_file)
+    matches = parsehmmsearch(hmmsearch_file)
+    # matches = parsehmmscan(hmmscan_file)
     # print(matches)
 
     annotations = get_annotations()
