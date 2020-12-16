@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import re
 import json
 import argparse
@@ -213,6 +214,36 @@ def _commonancestor(pathr, mapANs):
     # print(commonancestor)
 
     return commonancestor
+
+
+def runhmmr():
+    options['hmmr_out'] = options['fasta_input'] + '.' + options['hmmr_mode'] + '.out'
+
+    panther_hmm = options['data_folder'] + \
+        '/famhmm/binHmm'
+
+    hmmr_cmd = options['hmmr_mode'] + \
+        ' --notextw --cpu ' + \
+        str(options['hmmr_cpus']) + ' -o ' + options['hmmr_out'] + \
+        ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
+
+    if options['hmmr_bin'] is not None:
+        hmmr_cmd = options['hmmr_bin'] + '/' + hmmr_cmd
+
+    exit_status = os.system(hmmr_cmd)
+
+    if exit_status != 1:
+        sys.exit('Error running hmmer')
+
+    return exit_status
+
+
+
+def parsehmmr(hmmer_out):
+    if options['hmmr_mode'] == 'hmmscan':
+        return parsehmmscan(hmmer_out)
+    elif options['hmmr_mode'] == 'hmmsearch':
+        return parsehmmsearch(hmmer_out)
 
 
 def parsehmmscan(hmmer_out):
@@ -455,7 +486,7 @@ def get_args():
         help="input fasta file")
 
     ap.add_argument(
-        '-hb', '--hbin', default='',
+        '-hb', '--hbin', default=None,
         help='path to hmmr bin (default PATH)')
 
     ap.add_argument(
@@ -465,6 +496,10 @@ def get_args():
     ap.add_argument(
         '-hc', '--hcpus', default=1, type=int,
         help="number of hmmr cpus")
+
+    ap.add_argument(
+        '-ho', '--hout', default=None,
+        help="existing hmmr output file")
 
     ap.add_argument(
         '-o', '--out', required=True,
@@ -545,12 +580,17 @@ if __name__ == '__main__':
     options['fasta_input'] = args['fasta']
     options['out_file'] = args['out']
     options['hmmr_mode'] = args['hmode']
+    options['hmmr_bin'] = args['hbin']
+    options['hmmr_cpus'] = args['hcpus']
+    options['hmmr_out'] = args['hout']
 
     options['msf_tree_folder'] = options['data_folder'] + 'Tree_MSF/'
     if args['tmp'] is None:
         options['tmp_folder'] = options['data_folder'] + 'tmp/'
     else:
         options['tmp_folder'] = args['tmp'] + '/'
+    
+    # print(json.dumps(options, indent=4))
     
 
     # testing
@@ -559,12 +599,17 @@ if __name__ == '__main__':
     # testing
 
     
-    hmmsearch_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmsearch.out'
-    hmmscan_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmscan.out'
+    # hmmsearch_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmsearch.out'
+    # hmmscan_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmscan.out'
 
-    matches = parsehmmsearch(hmmsearch_file)
+    # matches = parsehmmsearch(hmmsearch_file)
     # matches = parsehmmscan(hmmscan_file)
     # print(matches)
+
+    if options['hmmr_out'] is None:
+        runhmmr()
+
+    matches = parsehmmr(options['hmmr_out'])
 
     annotations = get_annotations()
     # print(annotations)
