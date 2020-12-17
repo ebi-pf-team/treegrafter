@@ -232,7 +232,7 @@ def runhmmr():
 
     exit_status = os.system(hmmr_cmd)
 
-    if exit_status != 1:
+    if exit_status != 0:
         sys.exit('Error running hmmer')
 
     return exit_status
@@ -607,17 +607,20 @@ if __name__ == '__main__':
     # print(matches)
 
     if options['hmmr_out'] is None:
+        print('Running ' + options['hmmr_mode'])
         runhmmr()
 
+    print('Parsing hmmr output file')
     matches = parsehmmr(options['hmmr_out'])
 
+    print('Loading annotations')
     annotations = get_annotations()
     # print(annotations)
 
     results = []
 
     for pthr in matches:
-        print(pthr)
+        print('Processing panther id ' + pthr)
         logging.info('Processing panther id ' + pthr + "...\n")
 
         pthr_align_lenght = align_lenght(pthr)
@@ -643,6 +646,7 @@ if __name__ == '__main__':
         file.write(line)
     file.close()
 
+    print('Done')
 
 
 
