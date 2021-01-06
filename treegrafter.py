@@ -25,68 +25,99 @@ from tglib.re_matcher import re_matcher
 #     def group(self, i):
 #         return self.rematch.group(i)
 
+def process_matches_raxml(matches):
+
+    results = []
+
+    for pthr in matches:
+        print('Processing panther id ' + pthr)
+        logging.info('Processing panther id ' + pthr + "...\n")
+
+        pthr_align_lenght = align_lenght(pthr)
+
+        for query_id in matches[pthr]:
+            # print(query_id)
+            query_id_str = stringify(query_id)
+            # print(query_id_str)
+            # print('<<<')
+
+            # print(matches[pthr][query_id], pthr_align_lenght)
+            query_msf = _querymsf(matches[pthr][query_id], pthr_align_lenght)
+            # print(query_msf)
+
+            # print('>>>')
+
+            fasta_file = _generateFasta(pthr, query_id_str, query_msf)
+            # print(fasta_file)
+
+            result_string = _run_raxml(pthr, query_id_str, fasta_file, annotations)
+            results.append(result_string)
+            # print(result_string)
+
+    return results
+
+
+def process_matches_epang(matches):
+
+    print('Started running on EPA-NG mode')
+    results = []
+
+    for pthr in matches:
+        print('Processing panther id ' + pthr)
+        logging.info('Processing panther id ' + pthr + "...\n")
+
+        # print(matches[pthr])
+        query_fasta_file = generate_fasta_for_panthr(pthr, matches[pthr])
+        # print(query_fasta_file)
+
+        result_tree = _run_epang(pthr, query_fasta_file, annotations)
+
+        pthr_results = process_tree(pthr, result_tree)
+        results += pthr_results
 
 
 
-def _querymsf(matchdata, pthrAlignLength):
-
-    # matchdata contains: hmmstart, hmmend, hmmalign and matchalign, as arrays (multiple modules possible)
+    return results
 
 
-    # N-terminaly padd the sequence
-    # position 1 until start is filled with '-'
-    querymsf = ((int(matchdata['hmmstart'][0]) - 1) * '-')
+def generate_fasta_for_panthr(pthr, matches):
 
-    # loop the elements/domains
-    for i in range(0, len(matchdata['matchalign'])):
+    pthr_align_lenght = align_lenght(pthr)
 
-        # if this is not the first element, fill in the gap between the hits
-        if i > 0:
-            start = int(matchdata['hmmstart'][i])
-            end = int(matchdata['hmmend'][i-1])
-            # This bridges the query_idgap between the hits
-            querymsf += (start - end -1) * '-'
+    query_fasta = ''
 
-        # extract the query string
-        matchalign = matchdata['matchalign'][i]
-        hmmalign = matchdata['hmmalign'][i]
+    for query_id in matches:
+        # print(query_id)
+        query_id_str = stringify(query_id)
+        # print(query_id_str)
+        querymsf = _querymsf(matches[query_id], pthr_align_lenght)
+        # print(querymsf)
 
-        # loop the sequence
-        for j in range(0, len(hmmalign)):
-            # hmm insert state
-            if hmmalign[j:j+1] == ".":
-                continue
+        # print fasta header
+        query_fasta += '>' + query_id_str + '\n'
+        # and the body lines
+        for i in range(0, len(querymsf), 80):
+            query_fasta += querymsf[i:i+80] + '\n'
 
-            querymsf += matchalign[j:j+1]
+    # print(query_fasta)
 
-    # C-terminaly padd the sequence
-    # get the end of the last element/domain
-    last_end = int(matchdata['hmmend'][-1])
-    # and padd out to fill the msf lenght
-    querymsf += (int(pthrAlignLength) - last_end) * '-'
+    fasta_out_dir = options['tmp_folder']
+    fasta_out_file = fasta_out_dir + pthr + '_query.fasta'
 
+    with open(fasta_out_file, 'w') as outfile:
+        outfile.write(query_fasta)
 
-
-    # error check (is this required?)
-    if (len(querymsf) != pthrAlignLength):
-        # then something is wrong
-
-        print(matchdata)
-        print(querymsf)
-        print(pthrAlignLength)
-        print(len(querymsf))
-
-        return 0
-
-    return querymsf.upper()
+    return fasta_out_file
 
 
 def stringify(query_id):
     # stringify query_id
-    
+
     query_id = re.sub(r'[^\w]', '_', query_id)
 
     return query_id
+
+
 
 
 def _generateFasta(pathr, query_id, querymsf):
@@ -106,7 +137,92 @@ def _generateFasta(pathr, query_id, querymsf):
             # copy over the other fasta file
             outfile.write(infile.read())
 
-    return(fasta_out_file)
+    return fasta_out_file
+
+
+def _querymsf(matchdata, pthrAlignLength):
+
+    # matchdata contains: hmmstart, hmmend, hmmalign and matchalign, as arrays (multiple modules possible)
+
+    # N-terminaly padd the sequence
+    # position 1 until start is filled with '-'
+    querymsf = ((int(matchdata['hmmstart'][0]) - 1) * '-')
+
+    # loop the elements/domains
+    for i in range(0, len(matchdata['matchalign'])):
+
+        # if this is not the first element, fill in the gap between the hits
+        if i > 0:
+            start = int(matchdata['hmmstart'][i])
+            end = int(matchdata['hmmend'][i-1])
+            # This bridges the query_id gap between the hits
+            querymsf += (start - end - 1) * '-'
+
+        # extract the query string
+        matchalign = matchdata['matchalign'][i]
+        hmmalign = matchdata['hmmalign'][i]
+
+        # loop the sequence
+        for j in range(0, len(hmmalign)):
+            # hmm insert state
+            if hmmalign[j:j+1] == ".":
+                continue
+
+            querymsf += matchalign[j:j+1]
+
+    # C-terminaly padd the sequence
+    # get the end of the last element/domain
+    last_end = int(matchdata['hmmend'][-1])
+    # and padd out to fill the msf lenght
+    querymsf += (int(pthrAlignLength) - last_end) * '-'
+
+    # error check (is this required?)
+    if (len(querymsf) != pthrAlignLength):
+        # then something is wrong
+
+        print(matchdata)
+        print(querymsf)
+        print(pthrAlignLength)
+        print(len(querymsf))
+
+        return 0
+
+    return querymsf.upper()
+
+
+def _run_epang(pthr, query_fasta, annotations):
+
+    # print(query_fasta)
+
+    referece_fasta = options['msf_tree_folder'] + pthr + '.AN.fasta'
+    # print(referece_fasta)
+
+    pantherdir = options['msf_tree_folder']
+
+    bifurnewick_in = pantherdir + pthr + '.bifurcate.newick'
+
+    epang_dir = options['tmp_folder'] + \
+        pthr + '_epang' + str(os.getpid())
+
+    os.mkdir(epang_dir)
+
+    epang_cmd = 'epa-ng -G 0.05 -m WAG -T 4 -t ' + bifurnewick_in + \
+                ' -s ' + referece_fasta + \
+                ' -q ' + query_fasta + ' -w ' + epang_dir + ' >/dev/null'
+
+    if options['algo_bin']:
+        epang_cmd = options['algo_bin'] + '/' + epang_cmd
+
+    # print('EPANG_CMD: ' + epang_cmd)
+
+    exit_status = os.system(epang_cmd)
+
+    # print(exit_status)
+
+    return epang_dir + '/epa_result.jplace'
+
+
+
 
 
 def _run_raxml(pathr, query_id, fasta_file, annotations):
@@ -126,8 +242,8 @@ def _run_raxml(pathr, query_id, fasta_file, annotations):
                 ' -G 0.05 -m PROTGAMMAWAG -T 4 -s ' + fasta_file + \
                 ' -n ' + pathr + ' -w ' + raxml_dir + ' >/dev/null'
 
-    if options['raxml_bin']:
-        raxml_cmd = options['raxml_bin'] + '/' + raxml_cmd
+    if options['algo_bin']:
+        raxml_cmd = options['algo_bin'] + '/' + raxml_cmd
 
     # print('RAXML_CMD: ' + raxml_cmd)
 
@@ -147,10 +263,92 @@ def _run_raxml(pathr, query_id, fasta_file, annotations):
     annot = annotations[pathr + ':' + str(commonAN)]
     # print(annot)
     result = query_id + "\t" + pathr + "\t" + annot + "\n"
-    
+
     # print(result)
     return(result)
 
+
+def process_tree(pthr, result_tree):
+
+    # print(raxml_dir, pathr, query_id)
+
+    with open(result_tree) as classification:
+        classification_json = json.load(classification)
+
+    # print(classification_json)
+
+    tree_string = classification_json['tree']
+    # print(tree_string)
+
+    matches = re.findall(r'AN(\d+):\d+\.\d+\{(\d+)\}', tree_string)
+    # print(matches)
+
+    AN_label = {}
+    for [an, r] in matches:
+        AN_label['AN' + an] = 'R' + r
+        AN_label['R' + r] = 'AN' + an
+
+    # print(AN_label)
+
+    newick_string = re.sub(
+        r'(AN\d+)?\:\d+\.\d+{(\d+)}', r'R\g<2>', tree_string)
+    # print(newick_string)
+
+    mytree = Phylo.read(NewickIO.StringIO(newick_string), 'newick')
+    # print(mytree)
+    # Phylo.draw_ascii(mytree)
+
+    results_pthr = []
+
+    for placement in classification_json['placements']:
+        # print(placement['n'])
+        # print(placement['p'])
+        query_id = placement['n'][0]
+        # print('query:' + str(query_id))
+        # locations_ref = classification_json['placements'][0]['p']
+        # placement['p'] = [[130, 13902], [238, 13902]]
+        # print(locations_ref)
+
+        child_ids = []
+        ter = []
+
+        for maploc in placement['p']:
+            # print(maploc)
+            # print(placement['n'])
+            # print(placement['p'])
+            rloc = 'R' + str(maploc[0])
+
+            # print(rloc)
+
+            node = mytree.find_clades(rloc).__next__()
+            # print(node)
+
+            ter.extend(node.get_terminals())
+
+            # print(ter)
+
+            comonancestor = mytree.common_ancestor(ter)
+
+            # print(comonancestor)
+
+            for leaf in comonancestor.get_terminals():
+                child_ids.append(AN_label[leaf.name])
+
+            # print(child_ids)
+            # return child_ids
+
+        commonAN = _commonancestor(pthr, child_ids)
+        # print(commonAN)
+
+        if commonAN is None:
+            commonAN = 'root'
+
+        annot = annotations[pthr + ':' + str(commonAN)]
+        # print(annot)
+        results_pthr.append(query_id + "\t" + pthr + "\t" + annot + "\n")
+
+    # print(results_pthr)
+    return results_pthr
 
 
 
@@ -200,7 +398,7 @@ def _mapto(raxml_dir, pathr, query_id):
     ter = []
 
     for maploc in locations_ref:
-        # print("maploc")
+        # print(maploc[0])
 
         rloc = 'R' + str(maploc[0])
 
@@ -222,7 +420,7 @@ def _mapto(raxml_dir, pathr, query_id):
 
     # print(child_ids)
     return child_ids
- 
+
 
 def _commonancestor(pathr, mapANs):
 
@@ -272,7 +470,7 @@ def parsehmmr(hmmer_out):
 def parsehmmscan(hmmer_out):
 
     matches = {}
-    
+
 
     with open(hmmer_out) as fp:
         align_found_n = 0
@@ -408,10 +606,10 @@ def parsehmmsearch(hmmer_out):
                         # print("INCLUSION THRESHOLD:")
                         # print(line)
                         break
-                    
+
                     # print("STRIP:")
                     # print(line)
-                    
+
                     score_array = line.split()
 
                     # curr_query_id = score_array[8]
@@ -436,16 +634,15 @@ def parsehmmsearch(hmmer_out):
                     # print("QUERY ID UNDER THRESHOLD")
                     line = fp.readline()
                     continue
-    
+
                 # print(query_id)
                 if query_id not in match_store or score_store[query_id] > match_store[query_id]['score']:
                     # print("NEED TO STORE MATCH")
                     store_align = 1
                     # if query_id not in match_store:
                     match_store[query_id] = {
-                            'panther_id': matchpthr, 'score': score_store[query_id], 'align': {
-                                'hmmstart': [], 'hmmend': [], 'hmmalign': [], 'matchalign': []
-                            } }
+                        'panther_id': matchpthr, 'score': score_store[query_id], 'align': {
+                        'hmmstart': [], 'hmmend': [], 'hmmalign': [], 'matchalign': [] }}
 
 
 
@@ -517,6 +714,14 @@ def get_args():
         help='hmmr mode to use')
 
     ap.add_argument(
+        '-ab', '--abin',
+        help='path to RAxML/EPA-ng bin directory, PATH if None')
+
+    ap.add_argument(
+        '-am', '--amode', default='raxml', choices=['raxml', 'epang'],
+        help='tree placing algorithm to use')
+
+    ap.add_argument(
         '-hc', '--hcpus', default=1, type=int,
         help="number of hmmr cpus")
 
@@ -539,10 +744,6 @@ def get_args():
     ap.add_argument(
         '-k', '--keep', action='store_true',
         help='if set, does not clear tmp folder')
-
-    ap.add_argument(
-        '-rb', '--rbin', default='',
-        help='path to RAxML bin directory, PATH if None')
 
 
     # parser.add_argument('-l', '--log', type=str, default=None, help='log file')
@@ -598,14 +799,15 @@ if __name__ == '__main__':
 
     args = get_args()
 
-    global options
+    # global options
     options = {}
     options['data_folder'] = os.path.abspath(args['data']) + '/'
     options['fasta_input'] = args['fasta']
     options['out_file'] = args['out']
     options['hmmr_mode'] = args['hmode']
     options['hmmr_bin'] = args['hbin']
-    options['raxml_bin'] = args['rbin']
+    options['algo_mode'] = args['amode']
+    options['algo_bin'] = args['abin']
     options['hmmr_cpus'] = args['hcpus']
     options['hmmr_out'] = args['hout']
     options['keep_tmp'] = args['keep']
@@ -646,33 +848,39 @@ if __name__ == '__main__':
 
     results = []
 
-    for pthr in matches:
-        print('Processing panther id ' + pthr)
-        logging.info('Processing panther id ' + pthr + "...\n")
-
-        pthr_align_lenght = align_lenght(pthr)
-
-
-        for query_id in matches[pthr]:
-            # print(query_id)
-            query_id_str = stringify(query_id)
-            # print(query_id_str)
-            # print('<<<')
-
-            # print(matches[pthr][query_id], pthr_align_lenght)
-            query_msf = _querymsf(matches[pthr][query_id], pthr_align_lenght)
-            # print(query_msf)
-
-            # print('>>>')
-
-            fasta_file = _generateFasta(pthr, query_id_str, query_msf)
-            # print(fasta_file)
-
-            result_string = _run_raxml(pthr, query_id_str, fasta_file, annotations)
-            results.append(result_string)
-            # print(result_string)
+    if options['algo_mode'] == 'raxml':
+        results = process_matches_raxml(matches)
+    elif options['algo_mode'] == 'epang':
+        results = process_matches_epang(matches)
 
     # print(results)
+    # for pthr in matches:
+    #     print('Processing panther id ' + pthr)
+    #     logging.info('Processing panther id ' + pthr + "...\n")
+
+    #     pthr_align_lenght = align_lenght(pthr)
+
+
+    #     for query_id in matches[pthr]:
+    #         # print(query_id)
+    #         query_id_str = stringify(query_id)
+    #         # print(query_id_str)
+    #         # print('<<<')
+
+    #         # print(matches[pthr][query_id], pthr_align_lenght)
+    #         query_msf = _querymsf(matches[pthr][query_id], pthr_align_lenght)
+    #         # print(query_msf)
+
+    #         # print('>>>')
+
+    #         fasta_file = _generateFasta(pthr, query_id_str, query_msf)
+    #         # print(fasta_file)
+
+    #         result_string = _run_raxml(pthr, query_id_str, fasta_file, annotations)
+    #         results.append(result_string)
+    #         print(result_string)
+
+
     file = open(options['out_file'], 'w')
     print('Writing results to output file')
     for line in results:
