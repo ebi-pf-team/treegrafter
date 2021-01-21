@@ -462,8 +462,13 @@ def _commonancestor(pathr, mapANs):
 
 
 def runhmmr():
-    options['hmmr_out'] = options['fasta_input'] + \
-        '.' + options['hmmr_mode'] + '.out'
+
+    if options['hmmr_dir'] is None:
+        options['hmmr_dir'] = os.path.dirname(options['fasta_input'])
+    
+    options['hmmr_out'] = os.path.join(options['hmmr_dir'],
+        os.path.basename(options['fasta_input']) + \
+        '.' + options['hmmr_mode'] + '.out')
 
     panther_hmm = options['data_folder'] + \
         '/famhmm/binHmm'
@@ -739,7 +744,7 @@ def get_args():
         help='path to RAxML/EPA-ng bin directory, PATH if None')
 
     ap.add_argument(
-        '-am', '--amode', default='raxml', choices=['raxml', 'epang'],
+        '-am', '--amode', default='epang', choices=['raxml', 'epang'],
         help='tree placing algorithm to use')
 
     ap.add_argument(
@@ -749,6 +754,10 @@ def get_args():
     ap.add_argument(
         '-ho', '--hout', default=None,
         help="existing hmmr output file")
+
+    ap.add_argument(
+        '-hd', '--hdir', default=None,
+        help="directory to store hmmer output files, defaults to same as input fasta file if None")
 
     ap.add_argument(
         '-o', '--out', required=True,
@@ -830,6 +839,7 @@ if __name__ == '__main__':
     options['algo_mode'] = args['amode']
     options['algo_bin'] = args['abin']
     options['hmmr_cpus'] = args['hcpus']
+    options['hmmr_dir'] = args['hdir']
     options['hmmr_out'] = args['hout']
     options['keep_tmp'] = args['keep']
     options['msf_tree_folder'] = options['data_folder'] + 'Tree_MSF/'
