@@ -31,9 +31,9 @@ def process_matches_raxml(matches):
 
     for pthr in matches:
         print('Processing panther id ' + pthr)
-        logger.info('Processing panther id ' + pthr + "...\n")
+        # logger.info('Processing panther id ' + pthr + "...\n")
 
-        pthr_align_lenght = align_lenght(pthr)
+        pthr_align_length = align_length(pthr)
 
         for query_id in matches[pthr]:
             # print(query_id)
@@ -41,9 +41,13 @@ def process_matches_raxml(matches):
             # print(query_id_str)
             # print('<<<')
 
-            # print(matches[pthr][query_id], pthr_align_lenght)
-            query_msf = _querymsf(matches[pthr][query_id], pthr_align_lenght)
+            # print(matches[pthr][query_id], pthr_align_length)
+            query_msf = _querymsf(matches[pthr][query_id], pthr_align_length)
             # print(query_msf)
+
+            if not query_msf:
+                print('Skipping query ' + query_id + ' due to query_msf sequence error')
+                continue
 
             # print('>>>')
 
@@ -65,13 +69,23 @@ def process_matches_epang(matches):
 
     for pthr in matches:
         print('Processing panther id ' + pthr)
-        logger.info('Processing panther id ' + pthr + "...\n")
+        # logger.info('Processing panther id ' + pthr + "...\n")
 
         # print(matches[pthr])
         query_fasta_file = generate_fasta_for_panthr(pthr, matches[pthr])
         # print(query_fasta_file)
 
+        if os.path.getsize(query_fasta_file) == 0:
+            print('Skipping PANTHER id ' + pthr +
+                  ' due to empty query fasta')
+            continue
+
         result_tree = _run_epang(pthr, query_fasta_file, annotations)
+
+        if not result_tree:
+            print('Skipping PANTHER id ' + pthr +
+                  ' due to error running EPA-ng')
+            continue
 
         # print(result_tree)
 
@@ -83,7 +97,7 @@ def process_matches_epang(matches):
 
 def generate_fasta_for_panthr(pthr, matches):
 
-    pthr_align_lenght = align_lenght(pthr)
+    pthr_align_length = align_length(pthr)
 
     query_fasta = ''
 
@@ -91,8 +105,12 @@ def generate_fasta_for_panthr(pthr, matches):
         # print(query_id)
         query_id_str = stringify(query_id)
         # print(query_id_str)
-        querymsf = _querymsf(matches[query_id], pthr_align_lenght)
+        querymsf = _querymsf(matches[query_id], pthr_align_length)
         # print(querymsf)
+
+        if not querymsf:
+            print('Skipping query ' + query_id + ' due to query_msf sequence error')
+            continue
 
         # print fasta header
         query_fasta += '>' + query_id_str + '\n'
@@ -172,14 +190,22 @@ def _querymsf(matchdata, pthrAlignLength):
     # C-terminaly padd the sequence
     # get the end of the last element/domain
     last_end = int(matchdata['hmmend'][-1])
-    # and padd out to fill the msf lenght
+    # and padd out to fill the msf length
     querymsf += (int(pthrAlignLength) - last_end) * '-'
 
     # error check (is this required?)
     if (len(querymsf) != pthrAlignLength):
         # then something is wrong
+        # print("pthrAlignLength: " + str(pthrAlignLength))
+        # print("length querymsf: " + str(len(querymsf)))
+        # print("MSF: " + querymsf)
+        # print("match data:")
+        # print(matchdata)
+
         logger.error(
-            'ERROR: Lenght of query MSF longer than expected PANTHER alignment lenght: expected ' + str(pthrAlignLength) + ", got " + str(len(querymsf)))
+            'ERROR: length of query MSF longer than expected PANTHER alignment length: expected ' + str(pthrAlignLength) + ", got " + str(len(querymsf)))
+
+        # quit()
         return 0
 
     return querymsf.upper()
@@ -213,7 +239,8 @@ def _run_epang(pthr, query_fasta, annotations):
     exit_status = os.system(epang_cmd)
 
     if exit_status:
-        logger.error('ERROR: running EPA-ng command: ' + epang_cmd)
+        print('ERROR: running EPA-ng command: ' + epang_cmd)
+        return 0
 
     return epang_dir + '/epa_result.jplace'
 
@@ -791,7 +818,7 @@ def get_args():
     return args
 
 
-def align_lenght(pthr):
+def align_length(pthr):
     pthr_fasta_file = options['msf_tree_folder'] + pthr + '.AN.fasta'
 
     try:
@@ -800,12 +827,12 @@ def align_lenght(pthr):
             first_seq = file[1]
             first_seq = re.sub(r'\A[^\n]+', '', first_seq)
             first_seq = re.sub(r'\n', '', first_seq)
-            seq_lenght = len(first_seq)
+            seq_length = len(first_seq)
     except IOError:
         print("Could not find alignment for " + pthr)
         return(0)
 
-    return(seq_lenght)
+    return(seq_length)
 
 
 def get_annotations():
@@ -966,7 +993,7 @@ if __name__ == '__main__':
     #     'SYNY3|Gene=BAA18460|UniProtKB=P74365'
     # ])
 
-    # test_lenght = iter([
+    # test_length = iter([
     #     266,
     #     266,
     #     280,
@@ -979,7 +1006,7 @@ if __name__ == '__main__':
 
     #     test_query_id_str = stringify(test_query_id)
 
-    #     query_msf = _querymsf(test_data, next(test_lenght))
+    #     query_msf = _querymsf(test_data, next(test_length))
 
     #     print(query_msf)
 
