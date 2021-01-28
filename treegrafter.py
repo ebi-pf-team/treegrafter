@@ -26,8 +26,8 @@ from tglib.re_matcher import re_matcher
 #         return self.rematch.group(i)
 
 def process_matches_raxml(matches):
-
-    results = []
+    
+    results = ["query_id\tpanther_id\tpanther_sf\tscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
     for pthr in matches:
         print('Processing panther id ' + pthr)
@@ -37,7 +37,7 @@ def process_matches_raxml(matches):
 
         for query_id in matches[pthr]:
             # print(query_id)
-            query_id_str = stringify(query_id)
+            # query_id = stringify(query_id)
             # print(query_id_str)
             # print('<<<')
 
@@ -51,12 +51,12 @@ def process_matches_raxml(matches):
 
             # print('>>>')
 
-            fasta_file = _generateFasta(pthr, query_id_str, query_msf)
+            fasta_file = _generateFasta(pthr, query_id, query_msf)
             # print(fasta_file)
 
-            result_string = _run_raxml(
-                pthr, query_id_str, fasta_file, annotations)
-            results.append(result_string)
+            query_result = _run_raxml(
+                pthr, query_id, fasta_file, annotations, matches[pthr][query_id])
+            results += query_result
             # print(result_string)
 
     return results
@@ -65,7 +65,7 @@ def process_matches_raxml(matches):
 def process_matches_epang(matches):
 
     logger.debug('Started running on EPA-NG mode')
-    results = []
+    results = ["query_id\tpanther_id\tpanther_sf\tscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
     for pthr in matches:
         print('Processing panther id ' + pthr)
@@ -89,7 +89,8 @@ def process_matches_epang(matches):
 
         # print(result_tree)
 
-        pthr_results = process_tree(pthr, result_tree)
+        pthr_results = process_tree(pthr, result_tree, matches[pthr])
+
         results += pthr_results
 
     return results
@@ -103,8 +104,8 @@ def generate_fasta_for_panthr(pthr, matches):
 
     for query_id in matches:
         # print(query_id)
-        query_id_str = stringify(query_id)
-        # print(query_id_str)
+        # query_id = stringify(query_id)
+        # print(query_id)
         querymsf = _querymsf(matches[query_id], pthr_align_length)
         # print(querymsf)
 
@@ -113,7 +114,7 @@ def generate_fasta_for_panthr(pthr, matches):
             continue
 
         # print fasta header
-        query_fasta += '>' + query_id_str + '\n'
+        query_fasta += '>' + query_id + '\n'
         # and the body lines
         for i in range(0, len(querymsf), 80):
             query_fasta += querymsf[i:i+80] + '\n'
@@ -245,7 +246,7 @@ def _run_epang(pthr, query_fasta, annotations):
     return epang_dir + '/epa_result.jplace'
 
 
-def _run_raxml(pathr, query_id, fasta_file, annotations):
+def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
 
     # print(fasta_file)
 
@@ -287,13 +288,40 @@ def _run_raxml(pathr, query_id, fasta_file, annotations):
 
     annot = annotations[pathr + ':' + str(commonAN)]
     # print(annot)
-    result = query_id + "\t" + pathr + "\t" + annot + "\n"
+    # result = query_id + "\t" + pathr + "\t" + annot + "\n"
 
-    # print(result)
-    return result
+    pthrsf_match = re.match('SF:PTHR\d+:(SF\d+);', annot)
+    pthrsf = pthrsf_match.group(1)
+    # print(pthrsf)
+
+    # print(pthr_matches)
+    # query_matches = pthr_matches[query_id]
+    # print(query_matches)
+
+    results = []
+
+    for x in range(0, len(pthr_matches['hmmstart'])):
+        # print(x)
+        results.append(
+            query_id + "\t" +
+            pathr + "\t" +
+            pthrsf + "\t" +
+            pthr_matches['score'][x] + "\t" +
+            pthr_matches['cEvalue'][x] + "\t" +
+            pthr_matches['hmmstart'][x] + "\t" +
+            pthr_matches['hmmend'][x] + "\t" +
+            pthr_matches['alifrom'][x] + "\t" +
+            pthr_matches['alito'][x] + "\t" +
+            pthr_matches['envfrom'][x] + "\t" +
+            pthr_matches['envto'][x] + "\t" +
+            annot + "\n")
 
 
-def process_tree(pthr, result_tree):
+    # print(results)
+    return results
+
+
+def process_tree(pthr, result_tree, pthr_matches):
 
     # print(raxml_dir, pathr, query_id)
 
@@ -394,7 +422,32 @@ def process_tree(pthr, result_tree):
 
         annot = annotations[pthr + ':' + str(commonAN)]
         # print(annot)
-        results_pthr.append(query_id + "\t" + pthr + "\t" + annot + "\n")
+
+        pthrsf_match = re.match('SF:PTHR\d+:(SF\d+);', annot)
+        pthrsf = pthrsf_match.group(1)
+        # print(pthrsf)
+
+        # print(pthr_matches)
+        # query_matches = pthr_matches[query_id]
+        # print(query_matches)
+
+        for x in range(0, len(pthr_matches[query_id]['hmmstart'])):
+            # print(x)
+            results_pthr.append(
+                query_id + "\t" + 
+                pthr + "\t" + 
+                pthrsf + "\t" +
+                pthr_matches[query_id]['score'][x] + "\t" +
+                pthr_matches[query_id]['cEvalue'][x] + "\t" +
+                pthr_matches[query_id]['hmmstart'][x] + "\t" +
+                pthr_matches[query_id]['hmmend'][x] + "\t" +
+                pthr_matches[query_id]['alifrom'][x] + "\t" +
+                pthr_matches[query_id]['alito'][x] + "\t" +
+                pthr_matches[query_id]['envfrom'][x] + "\t" +
+                pthr_matches[query_id]['envto'][x] + "\t" +
+                annot + "\n")
+
+        # results_pthr.append(query_id + "\t" + pthr + "\t" + annot + "\n")
 
     # print(results_pthr)
     return results_pthr
@@ -544,6 +597,7 @@ def parsehmmscan(hmmer_out):
             elif m.match(r'\AQuery:\s+(\S+)'):
                 # print("INSIDE IF 2: {}".format(line.strip()))
                 query_id = m.group(1)
+                query_id = stringify(query_id)
                 # print(query_id)
             elif m.match(r'\A>> (PTHR[0-9]+)'):
                 align_found_n += 1
@@ -560,15 +614,35 @@ def parsehmmscan(hmmer_out):
                 if matchpthr not in matches:
                     matches[matchpthr] = {}
                 if query_id not in matches[matchpthr]:
-                    matches[matchpthr][query_id] = {}
-                if 'hmmstart' not in matches[matchpthr][query_id]:
-                    matches[matchpthr][query_id]['hmmstart'] = []
-                if 'hmmend' not in matches[matchpthr][query_id]:
-                    matches[matchpthr][query_id]['hmmend'] = []
+                    matches[matchpthr][query_id] = {
+                        'hmmalign': [],
+                        'matchalign': [],
+                        'hmmstart': [],
+                        'hmmend': [],
+                        'score': [],
+                        'bias': [],
+                        'cEvalue': [],
+                        'iEvalue': [],
+                        'alifrom': [],
+                        'alito': [],
+                        'envfrom': [],
+                        'envto': [],
+                        'acc': []
+                    }
 
+                matches[matchpthr][query_id]['score'].append(mark[2])
+                matches[matchpthr][query_id]['bias'].append(mark[3])
+                matches[matchpthr][query_id]['cEvalue'].append(mark[4])
+                matches[matchpthr][query_id]['iEvalue'].append(mark[5])
                 matches[matchpthr][query_id]['hmmstart'].append(mark[6])
                 matches[matchpthr][query_id]['hmmend'].append(mark[7])
+                matches[matchpthr][query_id]['alifrom'].append(mark[9])
+                matches[matchpthr][query_id]['alito'].append(mark[10])
+                matches[matchpthr][query_id]['envfrom'].append(mark[12])
+                matches[matchpthr][query_id]['envto'].append(mark[13])
+                matches[matchpthr][query_id]['acc'].append(mark[15])
 
+                # print(json.dumps(matches[matchpthr][query_id], indent=4))
                 # print(matches)
 
             elif m.match(r'\s+==') and align_found_n == 1:
@@ -579,17 +653,12 @@ def parsehmmscan(hmmer_out):
 
                 line = fp.readline()
 
-                if 'hmmalign' not in matches[matchpthr][query_id]:
-                    matches[matchpthr][query_id]['hmmalign'] = []
-
                 matches[matchpthr][query_id]['hmmalign'].append(
                     line.split()[2])
 
                 line = fp.readline()
 
                 line = fp.readline()
-                if 'matchalign' not in matches[matchpthr][query_id]:
-                    matches[matchpthr][query_id]['matchalign'] = []
 
                 matches[matchpthr][query_id]['matchalign'].append(
                     line.split()[2])
@@ -668,11 +737,11 @@ def parsehmmsearch(hmmer_out):
                     score_array = line.split()
 
                     # curr_query_id = score_array[8]
-                    # # print(curr_query_id)
+                    # print(curr_query_id)
                     # curr_score = float(score_array[1])
                     # # print(curr_score)
 
-                    score_store[score_array[8]] = float(score_array[1])
+                    score_store[stringify(score_array[8])] = float(score_array[1])
 
                     line = fp.readline()
 
@@ -682,6 +751,7 @@ def parsehmmsearch(hmmer_out):
             elif m.match(r'\A>>\s+(\S+)'):
                 # print("INSIDE IF 3: {}".format(line.strip()))
                 query_id = m.group(1)
+                query_id = stringify(query_id)
                 store_align = 0
 
                 if not query_id in score_store:
@@ -693,10 +763,51 @@ def parsehmmsearch(hmmer_out):
                 if query_id not in match_store or score_store[query_id] > match_store[query_id]['score']:
                     # print("NEED TO STORE MATCH")
                     store_align = 1
-                    # if query_id not in match_store:
+
                     match_store[query_id] = {
                         'panther_id': matchpthr, 'score': score_store[query_id], 'align': {
-                            'hmmstart': [], 'hmmend': [], 'hmmalign': [], 'matchalign': []}}
+                            'hmmalign': [],
+                            'matchalign': [],
+                            'hmmstart': [],
+                            'hmmend': [],
+                            'score': [],
+                            'bias': [],
+                            'cEvalue': [], 
+                            'iEvalue': [], 
+                            'alifrom': [], 
+                            'alito': [], 
+                            'envfrom': [], 
+                            'envto': [], 
+                            'acc': []
+                        }
+                    }
+
+                    fp.readline()
+                    fp.readline()
+                    line = fp.readline()
+                    while line.strip():
+                        # print(line)
+                        domain_info = line.split()
+                        # print(domain_info)
+
+                        if(len(domain_info) != 16):
+                            print('ERROR: domain info length is ' + str(len(domain_info)) +', expected 16')
+                            quit()
+
+                        match_store[query_id]['align']['score'].append(domain_info[2])
+                        match_store[query_id]['align']['bias'].append(domain_info[3])
+                        match_store[query_id]['align']['cEvalue'].append(domain_info[4])
+                        match_store[query_id]['align']['iEvalue'].append(domain_info[5])
+                        match_store[query_id]['align']['hmmstart'].append(domain_info[6])
+                        match_store[query_id]['align']['hmmend'].append(domain_info[7])
+                        match_store[query_id]['align']['alifrom'].append(domain_info[9])
+                        match_store[query_id]['align']['alito'].append(domain_info[10])
+                        match_store[query_id]['align']['envfrom'].append(domain_info[12])
+                        match_store[query_id]['align']['envto'].append(domain_info[13])
+                        match_store[query_id]['align']['acc'].append(domain_info[15])
+                        # print(json.dumps(match_store[query_id], indent=4))
+
+                        line = fp.readline()
 
             elif m.match(r'\s+==') and store_align:
                 # print("INSIDE IF 4: {}".format(line.strip()))
@@ -704,10 +815,10 @@ def parsehmmsearch(hmmer_out):
                 line = fp.readline()
                 hmmalign_array = line.split()
 
-                match_store[query_id]['align']['hmmstart'].append(
-                    hmmalign_array[1])
-                match_store[query_id]['align']['hmmend'].append(
-                    hmmalign_array[3])
+                # match_store[query_id]['align']['hmmstart'].append(
+                #     hmmalign_array[1])
+                # match_store[query_id]['align']['hmmend'].append(
+                #     hmmalign_array[3])
                 match_store[query_id]['align']['hmmalign'].append(
                     hmmalign_array[2])
 
