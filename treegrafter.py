@@ -423,7 +423,13 @@ def process_tree(pthr, result_tree, pthr_matches):
         annot = annotations[pthr + ':' + str(commonAN)]
         # print(annot)
 
-        pthrsf_match = re.match('SF:PTHR\d+:(SF\d+);', annot)
+        pthrsf_match = re.match('.*?PTHR\d+:(SF\d+)', annot)
+
+        if not pthrsf_match:
+            print("ERROR: parsing annotations, could not get SF family at line: " + annot)
+            quit()
+            
+            
         pthrsf = pthrsf_match.group(1)
         # print(pthrsf)
 
@@ -792,6 +798,7 @@ def parsehmmsearch(hmmer_out):
 
                         if(len(domain_info) != 16):
                             print('ERROR: domain info length is ' + str(len(domain_info)) +', expected 16')
+                            print(domain_info)
                             quit()
 
                         match_store[query_id]['align']['score'].append(domain_info[2])
