@@ -2,7 +2,7 @@
 
 import os
 import shutil
-import sys
+import tempfile
 import re
 import json
 import argparse
@@ -30,8 +30,7 @@ def process_matches_raxml(matches):
     results = ["query_id\tpanther_id\tpanther_sf\tscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
     for pthr in matches:
-        print('Processing panther id ' + pthr)
-        # logger.info('Processing panther id ' + pthr + "...\n")
+        logger.info('Processing panther id ' + pthr)
 
         pthr_align_length = align_length(pthr)
 
@@ -46,7 +45,7 @@ def process_matches_raxml(matches):
             # print(query_msf)
 
             if not query_msf:
-                print('Skipping query ' + query_id + ' due to query_msf sequence error')
+                logger.warning('Skipping query ' + query_id + ' due to query_msf sequence error')
                 continue
 
             # print('>>>')
@@ -68,22 +67,21 @@ def process_matches_epang(matches):
     results = ["query_id\tpanther_id\tpanther_sf\tscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
     for pthr in matches:
-        print('Processing panther id ' + pthr)
-        # logger.info('Processing panther id ' + pthr + "...\n")
+        logger.info('Processing panther id ' + pthr)
 
         # print(matches[pthr])
         query_fasta_file = generate_fasta_for_panthr(pthr, matches[pthr])
         # print(query_fasta_file)
 
         if os.path.getsize(query_fasta_file) == 0:
-            print('Skipping PANTHER id ' + pthr +
+            logger.warning('Skipping PANTHER id ' + pthr +
                   ' due to empty query fasta')
             continue
 
         result_tree = _run_epang(pthr, query_fasta_file, annotations)
 
         if not result_tree:
-            print('Skipping PANTHER id ' + pthr +
+            logger.warning('Skipping PANTHER id ' + pthr +
                   ' due to error running EPA-ng')
             continue
 
@@ -235,12 +233,12 @@ def _run_epang(pthr, query_fasta, annotations):
     if options['algo_bin']:
         epang_cmd = options['algo_bin'] + '/' + epang_cmd
 
-    logger.info('running epa_ng cmd: ' + epang_cmd)
+    logger.debug('running epa_ng cmd: ' + epang_cmd)
 
     exit_status = os.system(epang_cmd)
 
     if exit_status:
-        print('ERROR: running EPA-ng command: ' + epang_cmd)
+        logger.error('ERROR: running EPA-ng command: ' + epang_cmd)
         return 0
 
     return epang_dir + '/epa_result.jplace'
@@ -271,7 +269,7 @@ def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
     exit_status = os.system(raxml_cmd)
 
     if exit_status:
-        print('ERROR: running RAxML command: ' + raxml_cmd)
+        logger.error('ERROR: running RAxML command: ' + raxml_cmd)
         return ''
 
 
@@ -393,7 +391,8 @@ def process_tree(pthr, result_tree, pthr_matches):
             try:
                 node = next(clade_obj)
             except:
-                print("ERROR: grafting node " + rloc + " on " + pthr + " tree")
+                logger.error("ERROR: grafting node " +
+                             rloc + " on " + pthr + " tree")
                 # print(mytree)
                 continue
 
@@ -429,7 +428,7 @@ def process_tree(pthr, result_tree, pthr_matches):
         if pthrsf_match:
             pthrsf = pthrsf_match.group(1)
         else:
-            print("WARNING: parsing annotations, could not get SF family for " + str(commonAN))
+            logger.warning("WARNING: parsing annotations, could not get SF family for " + str(commonAN))
             
         # print(pthrsf)
 
@@ -570,7 +569,8 @@ def runhmmr():
     exit_status = os.system(hmmr_cmd)
 
     if exit_status != 0:
-        sys.exit('ERROR: running hmmer ' + hmmr_cmd)
+        logger.error('ERROR: running hmmer ' + hmmr_cmd)
+        quit()
 
     return exit_status
 
@@ -798,11 +798,11 @@ def parsehmmsearch(hmmer_out):
 
                         if(len(domain_info) != 16):
                             if(len(domain_info) == 2):
-                                print('WARNING: No individual domains that satisfy reporting thresholds for ' + query_id)
+                                logger.warning('WARNING: No individual domains that satisfy reporting thresholds for ' + query_id)
                                 break
                             else:
-                                print('ERROR: domain info length is ' + str(len(domain_info)) +', expected 16 for ' + query_id)
-                                # print(domain_info)
+                                logger.error('ERROR: domain info length is ' + str(len(domain_info)) +', expected 16 for ' + query_id)
+                                logger.debug(domain_info)
                                 quit()
 
                         match_store[query_id]['align']['score'].append(domain_info[2])
@@ -830,15 +830,13 @@ def parsehmmsearch(hmmer_out):
                 #     hmmalign_array[1])
                 # match_store[query_id]['align']['hmmend'].append(
                 #     hmmalign_array[3])
-                match_store[query_id]['align']['hmmalign'].append(
-                    hmmalign_array[2])
+                match_store[query_id]['align']['hmmalign'].append(hmmalign_array[2])
 
                 line = fp.readline()
 
                 line = fp.readline()
 
-                match_store[query_id]['align']['matchalign'].append(line.split()[
-                                                                    2])
+                match_store[query_id]['align']['matchalign'].append(line.split()[2])
 
                 line = fp.readline()
 
@@ -918,7 +916,7 @@ def get_args():
 
     ap.add_argument(
         '-t', '--tmp',
-        help='tmp work directory (default tmp folder in provided panther data directory)')
+        help='tmp work directory, None usues system default')
 
     ap.add_argument(
         '-k', '--keep', action='store_true',
@@ -993,23 +991,47 @@ if __name__ == '__main__':
     options['keep_tmp'] = args['keep']
     options['msf_tree_folder'] = options['data_folder'] + 'Tree_MSF/'
     if args['tmp'] is None:
-        options['tmp_folder'] = options['data_folder'] + 'tmp/'
+        options['tmp_folder'] = tempfile.mkdtemp() + '/'
     else:
-        options['tmp_folder'] = args['tmp'] + '/'
+        options['tmp_folder'] = tempfile.mkdtemp(dir=args['tmp']) + '/'
+
+    log_level = 'INFO'
+    if args['verbose']:
+        log_level = 'DEBUG'
+
+    log_formatter_str = '%(asctime)s | %(levelname)-8s | %(message)s'
+    log_formatter = logging.Formatter(log_formatter_str)
+
+    handlers = list()
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    handlers.append(console_handler)
+
+    logging.basicConfig(level=log_level,
+                        format=log_formatter_str,
+                        handlers=handlers)
+
+
+    logger = logging.getLogger('treegrafter')
 
     if not os.path.isdir(options['data_folder']):
-        print('ERROR: PANTHER data folder does not exist')
+        logger.error('ERROR: PANTHER data folder does not exist')
         quit()
 
     if not os.path.isdir(options['tmp_folder']):
-        print('ERROR: tmp folder does not exist')
+        logger.error('ERROR: cannot write to tmp folder ' + options['tmp_folder'])
         quit()
 
-    logger = logging.getLogger('treegrafter')
-    if args['verbose']:
-        logger.setLevel(1)
-    else:
-        logger.setLevel(logging.WARNING)
+
+    # print(json.dumps(options, indent=4))    
+
+    # print("Testing logger...")
+    # logger.debug('This is a debug message')
+    # logger.info('This is an info message')
+    # logger.warning('This is a warning message')
+    # logger.error('This is an error message')
+    # logger.critical('This is a critical message')
+    # quit()
 
     # print(json.dumps(options, indent=4))
 
@@ -1026,13 +1048,13 @@ if __name__ == '__main__':
     # print(matches)
 
     if options['hmmr_out'] is None:
-        print('Running ' + options['hmmr_mode'])
+        logger.info('Running ' + options['hmmr_mode'])
         runhmmr()
 
-    print('Parsing hmmr output file')
+    logger.info('Parsing hmmr output file')
     matches = parsehmmr(options['hmmr_out'])
 
-    print('Loading annotations')
+    logger.info('Loading annotations')
     annotations = get_annotations()
     # print(annotations)
 
@@ -1044,19 +1066,18 @@ if __name__ == '__main__':
         results = process_matches_epang(matches)
 
     file = open(options['out_file'], 'w')
-    print('Writing results to output file')
+    logger.info('Writing results to output file')
     for line in results:
         file.write(line)
     file.close()
 
     if not options['keep_tmp']:
         # remove tmp folder
-        print('Removing tmp data')
+        logger.info('Removing tmp data folder ' + options['tmp_folder'])
         shutil.rmtree(options['tmp_folder'])
         os.mkdir(options['tmp_folder'])
 
-
-    print('Done')
+    logger.info('Done')
 
 
     # test_input_querymsf = [
