@@ -203,7 +203,7 @@ def _querymsf(matchdata, pthrAlignLength):
 
         logger.error(
             'ERROR: length of query MSF longer than expected PANTHER alignment length: expected ' + str(pthrAlignLength) + ", got " + str(len(querymsf)))
-
+        logger.debug(matchdata)
         # quit()
         return 0
 
