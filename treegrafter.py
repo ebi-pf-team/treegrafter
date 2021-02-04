@@ -108,7 +108,7 @@ def generate_fasta_for_panthr(pthr, matches):
         # print(querymsf)
 
         if not querymsf:
-            print('Skipping query ' + query_id + ' due to query_msf sequence error')
+            logger.warning('Skipping query ' + query_id + ' due to query_msf sequence error')
             continue
 
         # print fasta header
@@ -162,6 +162,9 @@ def _querymsf(matchdata, pthrAlignLength):
 
     # N-terminaly padd the sequence
     # position 1 until start is filled with '-'
+
+    # print(json.dumps(matchdata, indent=4))    
+
     querymsf = ((int(matchdata['hmmstart'][0]) - 1) * '-')
 
     # loop the elements/domains
@@ -760,15 +763,37 @@ def parsehmmsearch(hmmer_out):
                 query_id = stringify(query_id)
                 store_align = 0
 
+                # print(json.dumps(score_store, indent=4))
+                
+
                 if not query_id in score_store:
                     # print("QUERY ID UNDER THRESHOLD")
                     line = fp.readline()
                     continue
 
                 # print(query_id)
-                if query_id not in match_store or score_store[query_id] > match_store[query_id]['score']:
+                stored_score = 0
+                if query_id in match_store:
+                    stored_score = match_store[query_id]['score']
+
+                if float(score_store[query_id]) > float(stored_score):
                     # print("NEED TO STORE MATCH")
+                    # print("new score   : " + str(score_store[query_id]))
+                    # print("stored score: " + str(stored_score))
+
                     store_align = 1
+
+                    line = fp.readline()
+
+                    # print(line)
+
+                    m = re_matcher(line)
+                    if m.match(r'\s+\[No individual domains that satisfy reporting thresholds'):
+                        # print("RESPORTING THRESHOLDS")
+                        logger.warning('WARNING: No individual domains that satisfy reporting thresholds for ' + query_id)
+                        store_align = 0
+                        # print(line)
+                        break
 
                     match_store[query_id] = {
                         'panther_id': matchpthr, 'score': score_store[query_id], 'align': {
@@ -778,17 +803,17 @@ def parsehmmsearch(hmmer_out):
                             'hmmend': [],
                             'score': [],
                             'bias': [],
-                            'cEvalue': [], 
-                            'iEvalue': [], 
-                            'alifrom': [], 
-                            'alito': [], 
-                            'envfrom': [], 
-                            'envto': [], 
+                            'cEvalue': [],
+                            'iEvalue': [],
+                            'alifrom': [],
+                            'alito': [],
+                            'envfrom': [],
+                            'envto': [],
                             'acc': []
                         }
                     }
 
-                    fp.readline()
+
                     fp.readline()
                     line = fp.readline()
                     while line.strip():
@@ -797,13 +822,25 @@ def parsehmmsearch(hmmer_out):
                         # print(domain_info)
 
                         if(len(domain_info) != 16):
-                            if(len(domain_info) == 2):
-                                logger.warning('WARNING: No individual domains that satisfy reporting thresholds for ' + query_id)
-                                break
-                            else:
-                                logger.error('ERROR: domain info length is ' + str(len(domain_info)) +', expected 16 for ' + query_id)
-                                logger.debug(domain_info)
-                                quit()
+                            logger.error('ERROR: domain info length is ' + str(len(domain_info)) + ', expected 16 for ' + query_id)
+                            logger.debug(domain_info)
+                            quit()
+
+
+                        # if(len(domain_info) != 16):
+                        #     if(len(domain_info) == 2):
+                        #         logger.warning('WARNING: No individual domains that satisfy reporting thresholds for ' + query_id)
+                        #         store_align = 0
+                        #         quit()
+                        #         break
+                        #     else:
+                        #         logger.error('ERROR: domain info length is ' + str(len(domain_info)) +', expected 16 for ' + query_id)
+                        #         logger.debug(domain_info)
+                        #         quit()
+
+                        # if query_id == 'UPI000058F2F3':
+                        #     print(domain_info)
+                        #     quit()
 
                         match_store[query_id]['align']['score'].append(domain_info[2])
                         match_store[query_id]['align']['bias'].append(domain_info[3])
@@ -840,6 +877,11 @@ def parsehmmsearch(hmmer_out):
 
                 line = fp.readline()
 
+                if not match_store[query_id]['align']['hmmstart']:
+                    print(query_id)
+                    print(match_store[query_id])
+                    quit()
+
             elif m.match(r'\A\/\/'):
                 # print("END BLOCK")
                 # print(match_store)
@@ -859,6 +901,11 @@ def parsehmmsearch(hmmer_out):
 
         if panther_id not in matches:
             matches[panther_id] = {}
+
+        if not match_store[query_id]['align']['hmmstart']:
+            print(query_id)
+            print(match_store[query_id])
+            quit()
 
         matches[panther_id][query_id] = match_store[query_id]['align']
 
@@ -949,7 +996,7 @@ def align_length(pthr):
             first_seq = re.sub(r'\n', '', first_seq)
             seq_length = len(first_seq)
     except IOError:
-        print("Could not find alignment for " + pthr)
+        logger.error("Could not find alignment for " + pthr)
         return(0)
 
     return(seq_length)
