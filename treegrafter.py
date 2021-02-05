@@ -551,8 +551,6 @@ def _commonancestor(pathr, mapANs):
 
 def runhmmr():
 
-    if options['hmmr_dir'] is None:
-        options['hmmr_dir'] = os.path.dirname(options['fasta_input'])
     
     options['hmmr_out'] = os.path.join(options['hmmr_dir'],
         os.path.basename(options['fasta_input']) + \
@@ -587,6 +585,9 @@ def parsehmmr(hmmer_out):
 
 def parsehmmscan(hmmer_out):
 
+    logger.critical("hmmscan mode is temporarily deactivated, please use hmmscaner")
+    quit()
+
     matches = {}
 
     with open(hmmer_out) as fp:
@@ -600,23 +601,32 @@ def parsehmmscan(hmmer_out):
             # print("Line {}: {}".format(cnt, line.strip()))
 
             if line.startswith('#') or not line.strip():
-                # print("INSIDE IF 1: {}".format(line.strip()))
+                print("INSIDE IF 1: {}".format(line.strip()))
                 line = fp.readline()
                 continue
             elif m.match(r'\AQuery:\s+(\S+)'):
-                # print("INSIDE IF 2: {}".format(line.strip()))
+                print("INSIDE IF 2: {}".format(line.strip()))
                 query_id = m.group(1)
                 query_id = stringify(query_id)
                 # print(query_id)
             elif m.match(r'\A>> (PTHR[0-9]+)'):
                 align_found_n += 1
-                # print("INSIDE IF 3: {}".format(line.strip()))
+                print("INSIDE IF 3: {}".format(line.strip()))
                 matchpthr = m.group(1)
                 # print(matchpthr)
-                # print(align_found_n)
+                print(align_found_n)
             elif m.match(r'\s+\d+\s+!') and align_found_n == 1:
-                # print("INSIDE IF 4: {}".format(line.strip()))
-
+                print("INSIDE IF 4: {}".format(line.strip()))
+                # if m.match(r'\s+\d+\s+\?'):
+                #     print(line)
+                #     # quit()
+                #     fp.readline()
+                #     fp.readline()
+                #     fp.readline()
+                #     fp.readline()
+                #     fp.readline()
+                #     line = fp.readline()
+                #     continue
                 mark = line.split()
                 # print(mark)
 
@@ -655,10 +665,10 @@ def parsehmmscan(hmmer_out):
                 # print(matches)
 
             elif m.match(r'\s+==') and align_found_n == 1:
-                # print("INSIDE IF 5: {}".format(line.strip()))
-                # query_id = m.group(1)
-                # print(query_id)
-                # print(align_found_n)
+                print("INSIDE IF 5: {}".format(line.strip()))
+                print(matchpthr)
+                print(query_id)
+                print(align_found_n)
 
                 line = fp.readline()
 
@@ -676,7 +686,8 @@ def parsehmmscan(hmmer_out):
 
             elif m.match(r'\A>> (\S+)'):
                 align_found_n += 1
-                # print("INSIDE IF 3: {}".format(line.strip()))
+                quit()
+                print("INSIDE IF X: {}".format(line.strip()))
                 matchpthr = m.group(1)
                 # print(matchpthr)
                 # print(align_found_n)
@@ -930,8 +941,8 @@ def get_args():
         help='path to hmmr bin directory, PATH if None')
 
     ap.add_argument(
-        '-hm', '--hmode', default='hmmscan', choices=['hmmscan', 'hmmsearch'],
-        help='hmmr mode to use')
+        '-hm', '--hmode', default='hmmsearch', choices=['hmmscan', 'hmmsearch'],
+        help='hmmr mode to use [hmmscan currently has known bugs, please use hmmsearch]')
 
     ap.add_argument(
         '-ab', '--abin',
@@ -951,7 +962,7 @@ def get_args():
 
     ap.add_argument(
         '-hd', '--hdir', default=None,
-        help="directory to store hmmer output files, defaults to same as input fasta file if None")
+        help="directory to store hmmer output files, None defaults to the tmp dir")
 
     ap.add_argument(
         '-o', '--out', required=True,
@@ -1041,6 +1052,9 @@ if __name__ == '__main__':
         options['tmp_folder'] = tempfile.mkdtemp() + '/'
     else:
         options['tmp_folder'] = tempfile.mkdtemp(dir=args['tmp']) + '/'
+    if options['hmmr_dir'] is None:
+        options['hmmr_dir'] = options['tmp_folder']
+
 
     log_level = 'INFO'
     if args['verbose']:
@@ -1123,6 +1137,8 @@ if __name__ == '__main__':
         logger.info('Removing tmp data folder ' + options['tmp_folder'])
         shutil.rmtree(options['tmp_folder'])
         os.mkdir(options['tmp_folder'])
+    else:
+        logger.info('Keeping tmp data folder ' + options['tmp_folder'])
 
     logger.info('Done')
 
