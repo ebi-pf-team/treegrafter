@@ -585,9 +585,10 @@ def parsehmmr(hmmer_out):
 
 def parsehmmscan(hmmer_out):
 
-    logger.critical("hmmscan mode is temporarily deactivated, please use hmmscaner")
-    quit()
+    # logger.critical("hmmscan mode is temporarily deactivated, please use hmmscaner")
+    # quit()
 
+    score_store = {}
     matches = {}
 
     with open(hmmer_out) as fp:
@@ -601,22 +602,59 @@ def parsehmmscan(hmmer_out):
             # print("Line {}: {}".format(cnt, line.strip()))
 
             if line.startswith('#') or not line.strip():
-                print("INSIDE IF 1: {}".format(line.strip()))
+                # print("INSIDE IF 1: {}".format(line.strip()))
                 line = fp.readline()
                 continue
             elif m.match(r'\AQuery:\s+(\S+)'):
-                print("INSIDE IF 2: {}".format(line.strip()))
+                # print("INSIDE IF 2: {}".format(line.strip()))
                 query_id = m.group(1)
                 query_id = stringify(query_id)
                 # print(query_id)
-            elif m.match(r'\A>> (PTHR[0-9]+)'):
-                align_found_n += 1
-                print("INSIDE IF 3: {}".format(line.strip()))
+
+                fp.readline()
+                fp.readline()
+                fp.readline()
+                fp.readline()
+                line = fp.readline()
+                # print(line)
+
+                while line.strip():
+                    m = re_matcher(line)
+                    if m.match(r'\s+------\sinclusion\sthreshold'):
+                        # print("INCLUSION THRESHOLD:")
+                        # print(line)
+                        break
+
+                    # print("STRIP:")
+                    # print(line)
+
+                    score_array = line.split()
+
+                    score_store[re.sub('\..*', '', score_array[8])] = float(score_array[1])
+                    # print(score_store)
+
+                    line = fp.readline()
+
+                # print("END IF 2:")
+                # print(line)
+
+
+            elif m.match(r'\A>>\s+(\w+)'):
+                # print("INSIDE IF 3: {}".format(line.strip()))
                 matchpthr = m.group(1)
                 # print(matchpthr)
-                print(align_found_n)
-            elif m.match(r'\s+\d+\s+!') and align_found_n == 1:
-                print("INSIDE IF 4: {}".format(line.strip()))
+
+                if not matchpthr in score_store:
+                    # print("MODEL ID UNDER THRESHOLD")
+                    line = fp.readline()
+                    continue
+
+                align_found_n += 1
+                # print(align_found_n)
+
+
+            elif m.match(r'\s+\d+\s+[!?]') and align_found_n == 1:
+                # print("INSIDE IF 4: {}".format(line.strip()))
                 # if m.match(r'\s+\d+\s+\?'):
                 #     print(line)
                 #     # quit()
@@ -665,10 +703,10 @@ def parsehmmscan(hmmer_out):
                 # print(matches)
 
             elif m.match(r'\s+==') and align_found_n == 1:
-                print("INSIDE IF 5: {}".format(line.strip()))
-                print(matchpthr)
-                print(query_id)
-                print(align_found_n)
+                # print("INSIDE IF 5: {}".format(line.strip()))
+                # print(matchpthr)
+                # print(query_id)
+                # print(align_found_n)
 
                 line = fp.readline()
 
@@ -684,17 +722,10 @@ def parsehmmscan(hmmer_out):
 
                 line = fp.readline()
 
-            elif m.match(r'\A>> (\S+)'):
-                align_found_n += 1
-                quit()
-                print("INSIDE IF X: {}".format(line.strip()))
-                matchpthr = m.group(1)
-                # print(matchpthr)
-                # print(align_found_n)
-
             elif m.match(r'\A\/\/'):
                 # print("END BLOCK")
                 align_found_n = 0
+                score_store = {}
                 # break
             # else:
             #     print("NOT MATCHED: {}".format(line.strip()))
@@ -920,7 +951,7 @@ def parsehmmsearch(hmmer_out):
 
         matches[panther_id][query_id] = match_store[query_id]['align']
 
-    # print(matches)
+    # print(json.dumps(matches, indent=4))
     return(matches)
 
 
