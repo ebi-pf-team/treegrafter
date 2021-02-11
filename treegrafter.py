@@ -103,7 +103,9 @@ def generate_fasta_for_panthr(pthr, matches):
     for query_id in matches:
         # print(query_id)
         # query_id = stringify(query_id)
+        # print(pthr)
         # print(query_id)
+        # print(json.dumps(matches[query_id], indent=4))
         querymsf = _querymsf(matches[query_id], pthr_align_length)
         # print(querymsf)
 
@@ -738,19 +740,15 @@ def parsehmmscan(hmmer_out):
 
 def parsehmmsearch(hmmer_out):
 
+    match_store = {}
+    score_store = {}
+    store_align = 0
+    store_domain = []
+
     matches = {}
 
+
     with open(hmmer_out) as fp:
-        score_store = {}
-
-        match_store = {}
-
-        # match_store['POPTR|EnsemblGenome=POPTR_0018s04850|UniProtKB=B9INH6'] = {}
-        # match_store['POPTR|EnsemblGenome=POPTR_0018s04850|UniProtKB=B9INH6']['score'] = 900
-        # match_store['POPTR|EnsemblGenome=POPTR_0018s04850|UniProtKB=B9INH6']['panther_id'] = 'TEST_PNTR_ID'
-
-        store_align = 0
-
         matchpthr = None
         query_id = None
 
@@ -766,7 +764,7 @@ def parsehmmsearch(hmmer_out):
             elif m.match(r'\AQuery:\s+(PTHR[0-9]+)'):
                 # print("INSIDE IF 2: {}".format(line.strip()))
                 matchpthr = m.group(1)
-                # print(matchpthr)
+                # print("MODEL_ID: " + matchpthr)
 
                 fp.readline()
                 fp.readline()
@@ -775,51 +773,49 @@ def parsehmmsearch(hmmer_out):
                 line = fp.readline()
                 # print(line)
 
+                inclusion = 1
                 while line.strip():
                     m = re_matcher(line)
                     if m.match(r'\s+------\sinclusion\sthreshold'):
-                        # print("INCLUSION THRESHOLD:")
+                        # print("INCLUSION THRESHOLD: " + line)
+                        inclusion = 0
+                        line = fp.readline()
                         # print(line)
-                        break
+                        continue
 
                     # print("STRIP:")
                     # print(line)
+                    if inclusion:
+                        score_array = line.split()
+                        # print(score_array)
 
-                    score_array = line.split()
-
-                    # curr_query_id = score_array[8]
-                    # print(curr_query_id)
-                    # curr_score = float(score_array[1])
-                    # # print(curr_score)
-
-                    score_store[stringify(score_array[8])] = float(score_array[1])
+                        score_store[stringify(score_array[8])] = float(score_array[1])
 
                     line = fp.readline()
 
-                # print("END IF 2:")
-                # print(line)
+                # print(score_store)
 
             elif m.match(r'\A>>\s+(\S+)'):
                 # print("INSIDE IF 3: {}".format(line.strip()))
                 query_id = m.group(1)
                 query_id = stringify(query_id)
-                store_align = 0
 
-                # print(json.dumps(score_store, indent=4))
-                
+                store_domain = []
+
 
                 if not query_id in score_store:
                     # print("QUERY ID UNDER THRESHOLD")
+                    store_align = 0
                     line = fp.readline()
+                    # quit()
                     continue
 
-                # print(query_id)
                 stored_score = 0
                 if query_id in match_store:
                     stored_score = match_store[query_id]['score']
 
                 if float(score_store[query_id]) > float(stored_score):
-                    # print("NEED TO STORE MATCH")
+                    # print(">>> NEED TO STORE MATCH")
                     # print("new score   : " + str(score_store[query_id]))
                     # print("stored score: " + str(stored_score))
 
@@ -827,18 +823,20 @@ def parsehmmsearch(hmmer_out):
 
                     line = fp.readline()
 
-                    # print(line)
-
                     m = re_matcher(line)
                     if m.match(r'\s+\[No individual domains that satisfy reporting thresholds'):
                         # print("RESPORTING THRESHOLDS")
                         logger.warning('WARNING: No individual domains that satisfy reporting thresholds for ' + query_id)
                         store_align = 0
                         # print(line)
-                        break
+                        line = fp.readline()
+                        # quit()
+                        continue
 
                     match_store[query_id] = {
-                        'panther_id': matchpthr, 'score': score_store[query_id], 'align': {
+                        'panther_id': matchpthr, 
+                        'score': score_store[query_id], 
+                        'align': {
                             'hmmalign': [],
                             'matchalign': [],
                             'hmmstart': [],
@@ -864,7 +862,7 @@ def parsehmmsearch(hmmer_out):
                         # print(domain_info)
 
                         if(len(domain_info) != 16):
-                            logger.error('ERROR: domain info length is ' + str(len(domain_info)) + ', expected 16 for ' + query_id)
+                            logger.critical('ERROR: domain info length is ' + str(len(domain_info)) + ', expected 16 for ' + query_id)
                             logger.debug(domain_info)
                             quit()
 
@@ -884,57 +882,102 @@ def parsehmmsearch(hmmer_out):
                         #     print(domain_info)
                         #     quit()
 
-                        match_store[query_id]['align']['score'].append(domain_info[2])
-                        match_store[query_id]['align']['bias'].append(domain_info[3])
-                        match_store[query_id]['align']['cEvalue'].append(domain_info[4])
-                        match_store[query_id]['align']['iEvalue'].append(domain_info[5])
-                        match_store[query_id]['align']['hmmstart'].append(domain_info[6])
-                        match_store[query_id]['align']['hmmend'].append(domain_info[7])
-                        match_store[query_id]['align']['alifrom'].append(domain_info[9])
-                        match_store[query_id]['align']['alito'].append(domain_info[10])
-                        match_store[query_id]['align']['envfrom'].append(domain_info[12])
-                        match_store[query_id]['align']['envto'].append(domain_info[13])
-                        match_store[query_id]['align']['acc'].append(domain_info[15])
-                        # print(json.dumps(match_store[query_id], indent=4))
+                        dom_num = domain_info[0]
+                        dom_state = domain_info[1]
+
+
+                        # print("LOOKING AT DOMAIN: " + dom_num + dom_state)
+
+
+                        if dom_state == '!':
+                            # print("saving domain " + dom_num)
+                            match_store[query_id]['align']['score'].append(domain_info[2])
+                            match_store[query_id]['align']['bias'].append(domain_info[3])
+                            match_store[query_id]['align']['cEvalue'].append(domain_info[4])
+                            match_store[query_id]['align']['iEvalue'].append(domain_info[5])
+                            match_store[query_id]['align']['hmmstart'].append(domain_info[6])
+                            match_store[query_id]['align']['hmmend'].append(domain_info[7])
+                            match_store[query_id]['align']['alifrom'].append(domain_info[9])
+                            match_store[query_id]['align']['alito'].append(domain_info[10])
+                            match_store[query_id]['align']['envfrom'].append(domain_info[12])
+                            match_store[query_id]['align']['envto'].append(domain_info[13])
+                            match_store[query_id]['align']['acc'].append(domain_info[15])
+
+                            store_domain.append(dom_num)
+
 
                         line = fp.readline()
 
-            elif m.match(r'\s+==') and store_align:
+                    # print(json.dumps(match_store[query_id], indent=4))
+                    # print(store_align)
+
+            elif m.match(r'\s+==\sdomain\s(\d+)') and store_align:
                 # print("INSIDE IF 4: {}".format(line.strip()))
+                # print(matchpthr)
+                # print(match_store[query_id]['panther_id'])
+                # print(query_id)
+                domain_num = m.group(1)
+                # print("DOMAIN " + domain_num)
+
+                if domain_num in store_domain:
+                    # print(store_domain)
+                    line = fp.readline()
+                    hmmalign_array = line.split()
+
+                    hmmalign_model = hmmalign_array[0]
+                    hmmalign_model = re.sub(r'\..+', '', hmmalign_model)
+                    # print('hmmalign_model ' + hmmalign_model)
+                    hmmalign_seq = hmmalign_array[2]
+
+
+                    
+                    # match_store[query_id]['align']['hmmalign'].append(hmmalign_seq)
+
+                    line = fp.readline()
+
+                    line = fp.readline()
+
+                    # print(query_id)
+                    matchalign_array = line.split()
+
+                    matchalign_query = matchalign_array[0]
+                    # print('matchalign_query ' + matchalign_query)
+                    matchlign_seq = matchalign_array[2]
+                    # match_store[query_id]['align']['matchalign'].append(matchlign_seq)
+
+                    if (matchpthr == hmmalign_model) and (query_id == matchalign_query):
+                        if len(match_store[query_id]['align']['hmmalign']) >= len(match_store[query_id]['align']['hmmstart']):
+                            # print("SIZE MISMATCH")
+                            logger.critical("Trying to add alignment sequence without additional data")
+                            quit()
+                        match_store[query_id]['align']['hmmalign'].append(hmmalign_seq)
+                        match_store[query_id]['align']['matchalign'].append(matchlign_seq)
+                    # else:
+                    #     print("ID MISMATCH")
+                    #     quit()
+
+
+
 
                 line = fp.readline()
-                hmmalign_array = line.split()
 
-                # match_store[query_id]['align']['hmmstart'].append(
-                #     hmmalign_array[1])
-                # match_store[query_id]['align']['hmmend'].append(
-                #     hmmalign_array[3])
-                match_store[query_id]['align']['hmmalign'].append(hmmalign_array[2])
-
-                line = fp.readline()
-
-                line = fp.readline()
-
-                match_store[query_id]['align']['matchalign'].append(line.split()[2])
-
-                line = fp.readline()
-
-                if not match_store[query_id]['align']['hmmstart']:
-                    print(query_id)
-                    print(match_store[query_id])
-                    quit()
+                # print(json.dumps(match_store[query_id], indent=4))
 
             elif m.match(r'\A\/\/'):
                 # print("END BLOCK")
                 # print(match_store)
+                # print(json.dumps(match_store, indent=4))
                 score_store = {}
+                store_domain = []
+                store_align = 0
+
                 # BREAK FOR DEBUG
                 # break
 
-            # else:
-            #     print("NOT MATCHED: {}".format(line.strip()))
+
 
             line = fp.readline()
+
 
     fp.close()
 
@@ -952,7 +995,7 @@ def parsehmmsearch(hmmer_out):
         matches[panther_id][query_id] = match_store[query_id]['align']
 
     # print(json.dumps(matches, indent=4))
-    return(matches)
+    return matches
 
 
 def get_args():
@@ -1107,11 +1150,11 @@ if __name__ == '__main__':
     logger = logging.getLogger('treegrafter')
 
     if not os.path.isdir(options['data_folder']):
-        logger.error('ERROR: PANTHER data folder does not exist')
+        logger.critical('ERROR: PANTHER data folder does not exist')
         quit()
 
     if not os.path.isdir(options['tmp_folder']):
-        logger.error('ERROR: cannot write to tmp folder ' + options['tmp_folder'])
+        logger.critical('ERROR: cannot write to tmp folder ' + options['tmp_folder'])
         quit()
 
 
