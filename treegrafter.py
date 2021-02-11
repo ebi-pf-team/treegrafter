@@ -590,6 +590,7 @@ def parsehmmscan(hmmer_out):
     # logger.critical("hmmscan mode is temporarily deactivated, please use hmmscaner")
     # quit()
 
+    store_domain = []
     score_store = {}
     matches = {}
 
@@ -617,18 +618,29 @@ def parsehmmscan(hmmer_out):
                 fp.readline()
                 fp.readline()
                 fp.readline()
+                fp.readline()
                 line = fp.readline()
                 # print(line)
 
                 while line.strip():
                     m = re_matcher(line)
                     if m.match(r'\s+------\sinclusion\sthreshold'):
-                        # print("INCLUSION THRESHOLD:")
-                        # print(line)
+                        # print("INCLUSION THRESHOLD: " + line)
                         break
 
                     # print("STRIP:")
                     # print(line)
+
+                    m = re_matcher(line)
+                    if m.match(r'\s+\[No hits detected that satisfy reporting thresholds'):
+                        # print("RESPORTING THRESHOLDS")
+                        logger.warning(
+                            'WARNING: No hits detected that satisfy reporting thresholds for ' + query_id)
+                        # print(line)
+                        line = fp.readline()
+                        # quit()
+                        continue
+
 
                     score_array = line.split()
 
@@ -638,13 +650,14 @@ def parsehmmscan(hmmer_out):
                     line = fp.readline()
 
                 # print("END IF 2:")
-                # print(line)
+                # print(score_store)
 
 
             elif m.match(r'\A>>\s+(\w+)'):
                 # print("INSIDE IF 3: {}".format(line.strip()))
                 matchpthr = m.group(1)
                 # print(matchpthr)
+                store_domain = []
 
                 if not matchpthr in score_store:
                     # print("MODEL ID UNDER THRESHOLD")
@@ -670,64 +683,79 @@ def parsehmmscan(hmmer_out):
                 mark = line.split()
                 # print(mark)
 
-                if matchpthr not in matches:
-                    matches[matchpthr] = {}
-                if query_id not in matches[matchpthr]:
-                    matches[matchpthr][query_id] = {
-                        'hmmalign': [],
-                        'matchalign': [],
-                        'hmmstart': [],
-                        'hmmend': [],
-                        'score': [],
-                        'bias': [],
-                        'cEvalue': [],
-                        'iEvalue': [],
-                        'alifrom': [],
-                        'alito': [],
-                        'envfrom': [],
-                        'envto': [],
-                        'acc': []
-                    }
+                dom_num = mark[0]
+                dom_state = mark[1]
 
-                matches[matchpthr][query_id]['score'].append(mark[2])
-                matches[matchpthr][query_id]['bias'].append(mark[3])
-                matches[matchpthr][query_id]['cEvalue'].append(mark[4])
-                matches[matchpthr][query_id]['iEvalue'].append(mark[5])
-                matches[matchpthr][query_id]['hmmstart'].append(mark[6])
-                matches[matchpthr][query_id]['hmmend'].append(mark[7])
-                matches[matchpthr][query_id]['alifrom'].append(mark[9])
-                matches[matchpthr][query_id]['alito'].append(mark[10])
-                matches[matchpthr][query_id]['envfrom'].append(mark[12])
-                matches[matchpthr][query_id]['envto'].append(mark[13])
-                matches[matchpthr][query_id]['acc'].append(mark[15])
+                # print("LOOKING AT DOMAIN: " + dom_num + dom_state)
+
+                if dom_state == '!':
+                    # print(mark)
+                    if matchpthr not in matches:
+                        matches[matchpthr] = {}
+                    if query_id not in matches[matchpthr]:
+                        matches[matchpthr][query_id] = {
+                            'hmmalign': [],
+                            'matchalign': [],
+                            'hmmstart': [],
+                            'hmmend': [],
+                            'score': [],
+                            'bias': [],
+                            'cEvalue': [],
+                            'iEvalue': [],
+                            'alifrom': [],
+                            'alito': [],
+                            'envfrom': [],
+                            'envto': [],
+                            'acc': []
+                        }
+
+                    matches[matchpthr][query_id]['score'].append(mark[2])
+                    matches[matchpthr][query_id]['bias'].append(mark[3])
+                    matches[matchpthr][query_id]['cEvalue'].append(mark[4])
+                    matches[matchpthr][query_id]['iEvalue'].append(mark[5])
+                    matches[matchpthr][query_id]['hmmstart'].append(mark[6])
+                    matches[matchpthr][query_id]['hmmend'].append(mark[7])
+                    matches[matchpthr][query_id]['alifrom'].append(mark[9])
+                    matches[matchpthr][query_id]['alito'].append(mark[10])
+                    matches[matchpthr][query_id]['envfrom'].append(mark[12])
+                    matches[matchpthr][query_id]['envto'].append(mark[13])
+                    matches[matchpthr][query_id]['acc'].append(mark[15])
+
+                    store_domain.append(dom_num)
 
                 # print(json.dumps(matches[matchpthr][query_id], indent=4))
                 # print(matches)
 
-            elif m.match(r'\s+==') and align_found_n == 1:
+            elif m.match(r'\s+==\sdomain\s(\d+)') and align_found_n == 1:
                 # print("INSIDE IF 5: {}".format(line.strip()))
                 # print(matchpthr)
                 # print(query_id)
                 # print(align_found_n)
 
-                line = fp.readline()
+                domain_num = m.group(1)
+                # print("DOMAIN " + domain_num)
 
-                matches[matchpthr][query_id]['hmmalign'].append(
-                    line.split()[2])
+                if domain_num in store_domain:
 
-                line = fp.readline()
+                    line = fp.readline()
 
-                line = fp.readline()
+                    matches[matchpthr][query_id]['hmmalign'].append(line.split()[2])
 
-                matches[matchpthr][query_id]['matchalign'].append(
-                    line.split()[2])
+                    line = fp.readline()
 
-                line = fp.readline()
+                    line = fp.readline()
+
+                    matches[matchpthr][query_id]['matchalign'].append(line.split()[2])
+    
+                    line = fp.readline()
+
+                    # print(json.dumps(matches[matchpthr][query_id], indent=4))
 
             elif m.match(r'\A\/\/'):
                 # print("END BLOCK")
                 align_found_n = 0
                 score_store = {}
+                # print(json.dumps(matches, indent=4))
                 # break
             # else:
             #     print("NOT MATCHED: {}".format(line.strip()))
@@ -735,7 +763,7 @@ def parsehmmscan(hmmer_out):
             line = fp.readline()
 
     fp.close()
-    return(matches)
+    return matches
 
 
 def parsehmmsearch(hmmer_out):
