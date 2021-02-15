@@ -1026,6 +1026,31 @@ def parsehmmsearch(hmmer_out):
     return matches
 
 
+def filter_best_domain(matches):
+    # print(json.dumps(matches, indent=4))
+
+    for panther in matches:
+        # print(json.dumps(panther, indent=4))
+        for query in matches[panther]:
+            # print(json.dumps(query, indent=4))
+            # print(json.dumps(matches[panther][query], indent=4))
+
+            while len(matches[panther][query]['score']) > 1:
+                # print("score 1 " + matches[panther][query]['score'][0])
+                # print("score 2 " + matches[panther][query]['score'][1])
+                if matches[panther][query]['score'][0] > matches[panther][query]['score'][1]:
+                    # print("DELETE 2")
+                    for key in matches[panther][query]:
+                        del matches[panther][query][key][1]
+                else:
+                    # print("DELETE 1")
+                    for key in matches[panther][query]:
+                        del matches[panther][query][key][0]
+
+    # print(json.dumps(matches, indent=4))
+    return matches
+
+
 def get_args():
     """
     Command line arguments parser.
@@ -1216,6 +1241,9 @@ if __name__ == '__main__':
 
     logger.info('Parsing hmmr output file')
     matches = parsehmmr(options['hmmr_out'])
+
+    # get the best domain only
+    matches = filter_best_domain(matches)
 
     logger.info('Loading annotations')
     annotations = get_annotations()
