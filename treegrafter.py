@@ -861,7 +861,8 @@ def parsehmmsearch(hmmer_out):
                         # quit()
                         continue
 
-                    match_store[query_id] = {
+                    # match_store[query_id] = {
+                    current_match = {
                         'panther_id': matchpthr, 
                         'score': score_store[query_id], 
                         'align': {
@@ -894,22 +895,6 @@ def parsehmmsearch(hmmer_out):
                             logger.debug(domain_info)
                             quit()
 
-
-                        # if(len(domain_info) != 16):
-                        #     if(len(domain_info) == 2):
-                        #         logger.warning('WARNING: No individual domains that satisfy reporting thresholds for ' + query_id)
-                        #         store_align = 0
-                        #         quit()
-                        #         break
-                        #     else:
-                        #         logger.error('ERROR: domain info length is ' + str(len(domain_info)) +', expected 16 for ' + query_id)
-                        #         logger.debug(domain_info)
-                        #         quit()
-
-                        # if query_id == 'UPI000058F2F3':
-                        #     print(domain_info)
-                        #     quit()
-
                         dom_num = domain_info[0]
                         dom_state = domain_info[1]
 
@@ -919,30 +904,46 @@ def parsehmmsearch(hmmer_out):
 
                         if dom_state == '!':
                             # print("saving domain " + dom_num)
-                            match_store[query_id]['align']['score'].append(domain_info[2])
-                            match_store[query_id]['align']['bias'].append(domain_info[3])
-                            match_store[query_id]['align']['cEvalue'].append(domain_info[4])
-                            match_store[query_id]['align']['iEvalue'].append(domain_info[5])
-                            match_store[query_id]['align']['hmmstart'].append(domain_info[6])
-                            match_store[query_id]['align']['hmmend'].append(domain_info[7])
-                            match_store[query_id]['align']['alifrom'].append(domain_info[9])
-                            match_store[query_id]['align']['alito'].append(domain_info[10])
-                            match_store[query_id]['align']['envfrom'].append(domain_info[12])
-                            match_store[query_id]['align']['envto'].append(domain_info[13])
-                            match_store[query_id]['align']['acc'].append(domain_info[15])
+                            # match_store[query_id]['align']['score'].append(domain_info[2])
+                            # match_store[query_id]['align']['bias'].append(domain_info[3])
+                            # match_store[query_id]['align']['cEvalue'].append(domain_info[4])
+                            # match_store[query_id]['align']['iEvalue'].append(domain_info[5])
+                            # match_store[query_id]['align']['hmmstart'].append(domain_info[6])
+                            # match_store[query_id]['align']['hmmend'].append(domain_info[7])
+                            # match_store[query_id]['align']['alifrom'].append(domain_info[9])
+                            # match_store[query_id]['align']['alito'].append(domain_info[10])
+                            # match_store[query_id]['align']['envfrom'].append(domain_info[12])
+                            # match_store[query_id]['align']['envto'].append(domain_info[13])
+                            # match_store[query_id]['align']['acc'].append(domain_info[15])
+
+                            current_match['align']['score'].append(domain_info[2])
+                            current_match['align']['bias'].append(domain_info[3])
+                            current_match['align']['cEvalue'].append(domain_info[4])
+                            current_match['align']['iEvalue'].append(domain_info[5])
+                            current_match['align']['hmmstart'].append(domain_info[6])
+                            current_match['align']['hmmend'].append(domain_info[7])
+                            current_match['align']['alifrom'].append(domain_info[9])
+                            current_match['align']['alito'].append(domain_info[10])
+                            current_match['align']['envfrom'].append(domain_info[12])
+                            current_match['align']['envto'].append(domain_info[13])
+                            current_match['align']['acc'].append(domain_info[15])
 
                             store_domain.append(dom_num)
 
 
                         line = fp.readline()
+                    if len(current_match['align']['hmmend']) == 0:
+                        store_align = 0
+                        logger.debug('No ! domains to store, skipping query ' + query_id + ' on model ' + matchpthr )
+                        # print(json.dumps(current_match, indent=4))
+                        # quit()
 
-                    # print(json.dumps(match_store[query_id], indent=4))
+                    # print(json.dumps(current_match, indent=4))
                     # print(store_align)
 
             elif m.match(r'\s+==\sdomain\s(\d+)') and store_align:
                 # print("INSIDE IF 4: {}".format(line.strip()))
                 # print(matchpthr)
-                # print(match_store[query_id]['panther_id'])
                 # print(query_id)
                 domain_num = m.group(1)
                 # print("DOMAIN " + domain_num)
@@ -974,12 +975,19 @@ def parsehmmsearch(hmmer_out):
                     # match_store[query_id]['align']['matchalign'].append(matchlign_seq)
 
                     if (matchpthr == hmmalign_model) and (query_id == matchalign_query):
-                        if len(match_store[query_id]['align']['hmmalign']) >= len(match_store[query_id]['align']['hmmstart']):
+                        if len(current_match['align']['hmmalign']) >= len(current_match['align']['hmmstart']):
                             # print("SIZE MISMATCH")
                             logger.critical("Trying to add alignment sequence without additional data")
                             quit()
-                        match_store[query_id]['align']['hmmalign'].append(hmmalign_seq)
-                        match_store[query_id]['align']['matchalign'].append(matchlign_seq)
+                        # match_store[query_id]['align']['hmmalign'].append(hmmalign_seq)
+                        # match_store[query_id]['align']['matchalign'].append(matchlign_seq)
+
+                        current_match['align']['hmmalign'].append(hmmalign_seq)
+                        current_match['align']['matchalign'].append(matchlign_seq)
+
+                    # print("store the match")
+                    match_store[query_id] = current_match
+                    # print(json.dumps(match_store[query_id], indent=4))
                     # else:
                     #     print("ID MISMATCH")
                     #     quit()
@@ -995,6 +1003,7 @@ def parsehmmsearch(hmmer_out):
                 # print("END BLOCK")
                 # print(match_store)
                 # print(json.dumps(match_store, indent=4))
+
                 score_store = {}
                 store_domain = []
                 store_align = 0
