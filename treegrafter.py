@@ -970,6 +970,8 @@ def parsehmmsearch(hmmer_out):
                     matchalign_array = line.split()
 
                     matchalign_query = matchalign_array[0]
+                    matchalign_query = stringify(matchalign_query)
+
                     # print('matchalign_query ' + matchalign_query)
                     matchlign_seq = matchalign_array[2]
                     # match_store[query_id]['align']['matchalign'].append(matchlign_seq)
