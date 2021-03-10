@@ -1124,6 +1124,11 @@ def get_args():
         '-v', '--verbose', default='ERROR', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper,
         help='if set, logs debug info at the provided level')
 
+    ap.add_argument(
+        '-l', '--legacy', action='store_true',
+        help='if set, uses legacy behaviour of using multiple domains of a match. Default uses best domain only.')
+
+
     args = vars(ap.parse_args())
 
     return args
@@ -1141,9 +1146,9 @@ def align_length(pthr):
             seq_length = len(first_seq)
     except IOError:
         logger.error("Could not find alignment for " + pthr)
-        return(0)
+        return 0
 
-    return(seq_length)
+    return seq_length
 
 
 def get_annotations():
@@ -1179,6 +1184,7 @@ if __name__ == '__main__':
     options['hmmr_dir'] = args['hdir']
     options['hmmr_out'] = args['hout']
     options['keep_tmp'] = args['keep']
+    options['legacy'] = args['legacy']
     options['msf_tree_folder'] = os.path.join(options['data_folder'], 'Tree_MSF/')
     if args['tmp'] is None:
         options['tmp_folder'] = tempfile.mkdtemp()
@@ -1244,8 +1250,10 @@ if __name__ == '__main__':
 
     # print(json.dumps(matches, indent=4))
 
-    # get the best domain only
-    matches = filter_best_domain(matches)
+    if not options['legacy']:
+        # get the best domain only
+        logger.info('Filtering best domains')
+        matches = filter_best_domain(matches)
 
     logger.info('Loading annotations')
     annotations = get_annotations()
