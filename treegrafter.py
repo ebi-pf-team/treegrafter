@@ -27,7 +27,7 @@ from tglib.re_matcher import re_matcher
 
 def process_matches_raxml(matches):
     
-    results = ["query_id\tpanther_id\tpanther_sf\tscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
+    results = ["query_id\tpanther_id\tpanther_sf\tscore\tdscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
     for pthr in matches:
         logger.info('Processing panther id ' + pthr)
@@ -64,7 +64,7 @@ def process_matches_raxml(matches):
 def process_matches_epang(matches):
 
     logger.debug('Started running on EPA-NG mode')
-    results = ["query_id\tpanther_id\tpanther_sf\tscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
+    results = ["query_id\tpanther_id\tpanther_sf\tscore\tdscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
     for pthr in matches:
         logger.info('Processing panther id ' + pthr)
@@ -302,6 +302,7 @@ def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
             pathr + "\t" +
             pthrsf + "\t" +
             pthr_matches['score'][x] + "\t" +
+            pthr_matches['dscore'][x] + "\t" +
             pthr_matches['cEvalue'][x] + "\t" +
             pthr_matches['hmmstart'][x] + "\t" +
             pthr_matches['hmmend'][x] + "\t" +
@@ -440,6 +441,7 @@ def process_tree(pthr, result_tree, pthr_matches):
                 pthr + "\t" + 
                 pthrsf + "\t" +
                 pthr_matches[query_id]['score'][x] + "\t" +
+                pthr_matches[query_id]['dscore'][x] + "\t" +
                 pthr_matches[query_id]['cEvalue'][x] + "\t" +
                 pthr_matches[query_id]['hmmstart'][x] + "\t" +
                 pthr_matches[query_id]['hmmend'][x] + "\t" +
@@ -693,7 +695,7 @@ def parsehmmscan(hmmer_out):
                             'hmmstart': [],
                             'hmmend': [],
                             'score': [],
-                            'bias': [],
+                            'dscore': [],
                             'cEvalue': [],
                             'iEvalue': [],
                             'alifrom': [],
@@ -703,8 +705,9 @@ def parsehmmscan(hmmer_out):
                             'acc': []
                         }
 
-                    matches[matchpthr][query_id]['score'].append(mark[2])
-                    matches[matchpthr][query_id]['bias'].append(mark[3])
+                    matches[matchpthr][query_id]['score'].append(str(score_store[matchpthr]))
+                    matches[matchpthr][query_id]['dscore'].append(mark[2])
+                    # matches[matchpthr][query_id]['bias'].append(mark[3])
                     matches[matchpthr][query_id]['cEvalue'].append(mark[4])
                     matches[matchpthr][query_id]['iEvalue'].append(mark[5])
                     matches[matchpthr][query_id]['hmmstart'].append(mark[6])
@@ -873,7 +876,7 @@ def parsehmmsearch(hmmer_out):
                             'hmmstart': [],
                             'hmmend': [],
                             'score': [],
-                            'bias': [],
+                            'dscore': [],
                             'cEvalue': [],
                             'iEvalue': [],
                             'alifrom': [],
@@ -918,8 +921,9 @@ def parsehmmsearch(hmmer_out):
                             # match_store[query_id]['align']['envto'].append(domain_info[13])
                             # match_store[query_id]['align']['acc'].append(domain_info[15])
 
-                            current_match['align']['score'].append(domain_info[2])
-                            current_match['align']['bias'].append(domain_info[3])
+                            current_match['align']['score'].append(str(score_store[query_id]))
+                            current_match['align']['dscore'].append(domain_info[2])
+                            # current_match['align']['bias'].append(domain_info[3])
                             current_match['align']['cEvalue'].append(domain_info[4])
                             current_match['align']['iEvalue'].append(domain_info[5])
                             current_match['align']['hmmstart'].append(domain_info[6])
@@ -1048,10 +1052,10 @@ def filter_best_domain(matches):
             # print(json.dumps(query, indent=4))
             # print(json.dumps(matches[panther][query], indent=4))
 
-            while len(matches[panther][query]['score']) > 1:
+            while len(matches[panther][query]['dscore']) > 1:
                 # print("score 1 " + matches[panther][query]['score'][0])
                 # print("score 2 " + matches[panther][query]['score'][1])
-                if matches[panther][query]['score'][0] > matches[panther][query]['score'][1]:
+                if matches[panther][query]['dscore'][0] > matches[panther][query]['dscore'][1]:
                     # print("DELETE 2")
                     for key in matches[panther][query]:
                         del matches[panther][query][key][1]
@@ -1082,15 +1086,15 @@ def get_args():
 
     ap.add_argument(
         '-hm', '--hmode', default='hmmsearch', choices=['hmmscan', 'hmmsearch'],
-        help='hmmr mode to use [hmmscan currently has known bugs, please use hmmsearch]')
-
-    ap.add_argument(
-        '-ab', '--abin',
-        help='path to RAxML/EPA-ng bin directory, PATH if None')
+        help='hmmr mode to use')
 
     ap.add_argument(
         '-am', '--amode', default='epang', choices=['raxml', 'epang'],
         help='tree placing algorithm to use')
+
+    ap.add_argument(
+        '-ab', '--abin',
+        help='path to RAxML/EPA-ng bin directory, PATH if None')
 
     ap.add_argument(
         '-hc', '--hcpus', default=1, type=int,
