@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+import sys
+# sys.path.insert(0, '')
+
+# from pathlib import Path
+# cwd = str(Path(__file__).parent)
+# sys.path.insert(0, cwd)
 
 import os
 import shutil
@@ -12,6 +18,8 @@ from Bio.Phylo import NewickIO
 
 # relative imports
 from tglib.re_matcher import re_matcher
+
+
 
 
 # class re_matcher(object):
