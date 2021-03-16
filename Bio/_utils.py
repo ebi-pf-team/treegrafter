@@ -46,6 +46,22 @@ def read_forward(handle):
             return line
 
 
+def _read_header(handle, length):
+    """Read the specified number of characters from the given handle.
+
+    Raise a ValueError("Empty file.") if the length of data read is zero. The
+    reason for having a separate function for the header is it enables raising
+    an empty file error if the length of the data read is zero. This might
+    not always be the case later in the file.
+    """
+    data = handle.read(length)
+    if not data:
+        raise ValueError("Empty file.")
+    if len(data) < length:
+        raise ValueError("Improper header, cannot read %d bytes from handle" % length)
+    return data
+
+
 def trim_str(string, max_len, concat_char):
     """Truncate the given string for display."""
     if len(string) > max_len:
@@ -53,7 +69,7 @@ def trim_str(string, max_len, concat_char):
     return string
 
 
-def getattr_str(obj, attr, fmt=None, fallback='?'):
+def getattr_str(obj, attr, fmt=None, fallback="?"):
     """Return string of the given object's attribute.
 
     Defaults to the given fallback value if attribute is not present.
@@ -104,7 +120,7 @@ def run_doctest(target_dir=None, *args, **kwargs):
 
     # default doctest options
     default_kwargs = {
-        'optionflags': doctest.ELLIPSIS,
+        "optionflags": doctest.ELLIPSIS,
     }
     kwargs.update(default_kwargs)
 

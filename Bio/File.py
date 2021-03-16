@@ -55,7 +55,7 @@ except ImportError:
 
 
 @contextlib.contextmanager
-def as_handle(handleish, mode='r', **kwargs):
+def as_handle(handleish, mode="r", **kwargs):
     r"""Context manager to ensure we are using a handle.
 
     Context manager for arguments that can be passed to SeqIO and AlignIO read, write,
@@ -77,17 +77,24 @@ def as_handle(handleish, mode='r', **kwargs):
 
     Examples
     --------
-    >>> with as_handle('seqs.fasta', 'w') as fp:
-    ...     fp.write('>test\nACGT')
+    >>> from Bio import File
+    >>> import os
+    >>> with File.as_handle('seqs.fasta', 'w') as fp:
+    ...     # Python2/3 docstring workaround, revise for 'Python 3 only'.
+    ...     _ = fp.write('>test\nACGT')
+    ...
     >>> fp.closed
     True
 
     >>> handle = open('seqs.fasta', 'w')
-    >>> with as_handle(handle) as fp:
-    ...     fp.write('>test\nACGT')
+    >>> with File.as_handle(handle) as fp:
+    ...     # Python 2/3 docstring workaround, revise for 'Python 3 only'.
+    ...     _ = fp.write('>test\nACGT')
+    ...
     >>> fp.closed
     False
     >>> fp.close()
+    >>> os.remove("seqs.fasta")  # tidy up
 
     Note that if the mode argument includes U (for universal new lines)
     this will be removed under Python 3 where is is redundant and has
@@ -95,8 +102,8 @@ def as_handle(handleish, mode='r', **kwargs):
 
     """
     # If we're running under a version of Python that supports PEP 519, try
-    # to convert `handleish` to a string with `os.fspath`.
-    if hasattr(os, 'fspath'):
+    # to convert 'handleish' to a string with 'os.fspath'.
+    if hasattr(os, "fspath"):
         try:
             handleish = os.fspath(handleish)
         except TypeError:
@@ -106,7 +113,7 @@ def as_handle(handleish, mode='r', **kwargs):
     if isinstance(handleish, basestring):
         if sys.version_info[0] >= 3 and "U" in mode:
             mode = mode.replace("U", "")
-        if 'encoding' in kwargs:
+        if "encoding" in kwargs:
             with codecs.open(handleish, mode, **kwargs) as fp:
                 yield fp
         else:
@@ -201,7 +208,7 @@ class UndoHandle(object):
             saved = "".join(self._saved)
             self._saved[:] = []
         else:
-            saved = ''
+            saved = ""
             while size > 0 and self._saved:
                 if len(self._saved[0]) <= size:
                     size = size - len(self._saved[0])
@@ -304,7 +311,7 @@ class _IndexedSeqFileDict(_dict_base):
 
     As used in Bio.SeqIO, by default the SeqRecord's id string is used
     as the dictionary key. In Bio.SearchIO, the query's id string is
-    used. This can be changed by suppling an optional key_function,
+    used. This can be changed by supplying an optional key_function,
     a callback function which will be given the record id and must
     return the desired key. For example, this allows you to parse
     NCBI style FASTA identifiers, and extract the GI number to use
@@ -570,7 +577,8 @@ class _SQLiteManySeqFilesDict(_IndexedSeqFileDict):
         format = self._format
         proxy_factory = self._proxy_factory
 
-        con = _sqlite.connect(index_filename)
+        con = _sqlite.connect(index_filename,
+                              check_same_thread=False)
         self._con = con
         # Check the count...
         try:
@@ -581,8 +589,12 @@ class _SQLiteManySeqFilesDict(_IndexedSeqFileDict):
             if self._length == -1:
                 con.close()
                 raise ValueError("Unfinished/partial database")
+
+            # use MAX(_ROWID_) to obtain the number of sequences in the database
+            # using COUNT(key) is quite slow in SQLITE
+            # (https://stackoverflow.com/questions/8988915/sqlite-count-slow-on-big-tables)
             count, = con.execute(
-                "SELECT COUNT(key) FROM offset_data;").fetchone()
+                "SELECT MAX(_ROWID_) FROM offset_data;").fetchone()
             if self._length != int(count):
                 con.close()
                 raise ValueError("Corrupt database? %i entries not %i"

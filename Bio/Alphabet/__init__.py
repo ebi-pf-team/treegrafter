@@ -6,10 +6,24 @@
 # choice of the "Biopython License Agreement" or the "BSD 3-Clause License".
 # Please see the LICENSE file that should have been included as part of this
 # package.
-"""Alphabets used in Seq objects etc to declare sequence type and letters.
+"""Alphabets used in Seq objects etc to declare sequence type and letters (OBSOLETE).
 
 This is used by sequences which contain a finite number of similar words.
+
+The design of Bio.Aphabet included a number of historic design choices
+which, with the benefit of hindsight, were regretable. While the details
+remain to be agreed, we intend to remove or replace Bio.Alphabet in 2020.
+Please avoid using this module explicitly in your code. See also:
+https://github.com/biopython/biopython/issues/2046
 """
+
+import warnings
+
+warnings.warn("We intend to remove or replace Bio.Alphabet in 2020, "
+              "ideally avoid using it explicitly in your code. Please "
+              "get in touch if you will be adversely affected by this. "
+              "https://github.com/biopython/biopython/issues/2046",
+              PendingDeprecationWarning)
 
 
 class Alphabet(object):
@@ -33,6 +47,7 @@ class Alphabet(object):
     # objects.
 
     def __repr__(self):
+        """Represent the alphabet class as a string for debugging."""
         return self.__class__.__name__ + "()"
 
     def contains(self, other):
@@ -171,6 +186,8 @@ class ThreeLetterProtein(Alphabet):
 
 
 class AlphabetEncoder(object):
+    """A class to construct a new, extended alphabet from an existing one."""
+
     def __init__(self, alphabet, new_letters):
         """Initialize the class."""
         self.alphabet = alphabet
@@ -181,11 +198,13 @@ class AlphabetEncoder(object):
             self.letters = None
 
     def __getattr__(self, key):
+        """Proxy method for accessing attributes of the wrapped alphabet."""
         if key[:2] == "__" and key[-2:] == "__":
             raise AttributeError(key)
         return getattr(self.alphabet, key)
 
     def __repr__(self):
+        """Represent the alphabet encoder class as a string for debugging."""
         return "%s(%r, %r)" % (self.__class__.__name__, self.alphabet,
                                self.new_letters)
 
@@ -209,6 +228,8 @@ class AlphabetEncoder(object):
 
 
 class Gapped(AlphabetEncoder):
+    """Alphabets which contain a gap character."""
+
     def __init__(self, alphabet, gap_char="-"):
         """Initialize the class."""
         AlphabetEncoder.__init__(self, alphabet, gap_char)
@@ -234,6 +255,8 @@ class Gapped(AlphabetEncoder):
 
 
 class HasStopCodon(AlphabetEncoder):
+    """Alphabets which contain a stop symbol."""
+
     def __init__(self, alphabet, stop_symbol="*"):
         """Initialize the class."""
         AlphabetEncoder.__init__(self, alphabet, stop_symbol)

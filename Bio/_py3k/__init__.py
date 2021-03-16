@@ -115,7 +115,7 @@ if sys.version_info[0] >= 3:
             # "ISO-8859-1" is also known as 'latin-1'
             # See the following for more detail:
             # https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7.1
-            encoding = 'latin-1'
+            encoding = "latin-1"
         wrapped = io.TextIOWrapper(io.BufferedReader(handle), encoding=encoding)
         try:
             # If wrapping an online handle, this is nice to have:
@@ -133,7 +133,15 @@ if sys.version_info[0] >= 3:
     # On Python 3 urllib, urllib2, and urlparse were merged:
     from urllib.request import urlopen, Request, urlretrieve, urlparse, urlcleanup
     from urllib.parse import urlencode, quote
-    from urllib.error import HTTPError
+    from urllib.error import URLError, HTTPError
+
+    exec("""\
+def raise_from(value, from_value):
+    try:
+        raise value from from_value
+    finally:
+        value = None
+""")
 
 else:
     # Python 2 code
@@ -194,7 +202,10 @@ else:
     from urllib import urlencode, quote
 
     # Under urllib.error on Python 3:
-    from urllib2 import HTTPError
+    from urllib2 import URLError, HTTPError
+
+    def raise_from(value, from_value):
+        raise value
 
 
 if sys.platform == "win32":

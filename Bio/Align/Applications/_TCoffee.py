@@ -57,10 +57,7 @@ class TCoffeeCommandline(AbstractCommandline):
                     One (or more separated by a comma) of:
                     'clustalw_aln', 'clustalw', 'gcg', 'msf_aln',
                     'pir_aln', 'fasta_aln', 'phylip', 'pir_seq', 'fasta_seq'
-
-                    Note that of these Biopython's AlignIO module will only
-                    read clustalw, pir, and fasta.
-                    """,  # TODO - Can we read the PHYLIP output?
+                    """,
                     equate=False),
             _Option(["-infile", "infile"],
                     "Specify the input file.",
