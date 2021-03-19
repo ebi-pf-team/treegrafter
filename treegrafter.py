@@ -552,7 +552,7 @@ def runhmmr():
         os.path.basename(options['fasta_input']) + \
         '.' + options['hmmr_mode'] + '.out')
 
-    panther_hmm = os.path.join(options['data_folder'], '/famhmm/binHmm')
+    panther_hmm = os.path.join(options['data_folder'], 'famhmm/binHmm')
 
     hmmr_cmd = options['hmmr_mode'] + \
         ' --notextw --cpu ' + \
