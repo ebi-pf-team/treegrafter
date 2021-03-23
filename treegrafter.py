@@ -554,13 +554,24 @@ def runhmmr():
 
     panther_hmm = os.path.join(options['data_folder'], 'famhmm/binHmm')
 
-    hmmr_cmd = options['hmmr_mode'] + \
-        ' --notextw --cpu ' + \
-        str(options['hmmr_cpus']) + ' -o ' + options['hmmr_out'] + \
-        ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
+
+
+    hmmr_cmd = options['hmmr_mode']
 
     if options['hmmr_bin']:
         hmmr_cmd = options['hmmr_bin'] + '/' + hmmr_cmd
+
+    if options['hmmr_evalue']:
+        hmmr_cmd = hmmr_cmd + ' -E ' + str(options['hmmr_evalue'])
+
+
+    hmmr_cmd = hmmr_cmd + ' --notextw --cpu ' + \
+        str(options['hmmr_cpus']) + ' -o ' + options['hmmr_out'] + \
+        ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
+
+
+
+    print(hmmr_cmd)
 
     exit_status = os.system(hmmr_cmd)
 
@@ -1101,6 +1112,10 @@ def get_args():
         help="number of hmmr cpus")
 
     ap.add_argument(
+        '-he', '--hevalue', default=None, type=float,
+        help="per-domain E-value cutoff for hmmer")
+
+    ap.add_argument(
         '-ho', '--hout', default=None,
         help="existing hmmr output file")
 
@@ -1185,6 +1200,7 @@ if __name__ == '__main__':
     options['algo_mode'] = args['amode']
     options['algo_bin'] = args['abin']
     options['hmmr_cpus'] = args['hcpus']
+    options['hmmr_evalue'] = args['hevalue']
     options['hmmr_dir'] = args['hdir']
     options['hmmr_out'] = args['hout']
     options['keep_tmp'] = args['keep']
