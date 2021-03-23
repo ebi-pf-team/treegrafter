@@ -555,23 +555,22 @@ def runhmmr():
     panther_hmm = os.path.join(options['data_folder'], 'famhmm/binHmm')
 
 
-
+    # the binary
     hmmr_cmd = options['hmmr_mode']
 
+    # path to binary
     if options['hmmr_bin']:
         hmmr_cmd = options['hmmr_bin'] + '/' + hmmr_cmd
 
+    # cutoff evalue
     if options['hmmr_evalue']:
         hmmr_cmd = hmmr_cmd + ' -E ' + str(options['hmmr_evalue'])
 
-
+    # all the rest
     hmmr_cmd = hmmr_cmd + ' --notextw --cpu ' + \
         str(options['hmmr_cpus']) + ' -o ' + options['hmmr_out'] + \
         ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
 
-
-
-    print(hmmr_cmd)
 
     exit_status = os.system(hmmr_cmd)
 
