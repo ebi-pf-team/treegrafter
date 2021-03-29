@@ -14,16 +14,6 @@ from Bio.Phylo import NewickIO
 from tglib.re_matcher import re_matcher
 
 
-# class re_matcher(object):
-#     def __init__(self, matchstring):
-#         self.matchstring = matchstring
-
-#     def match(self, regexp):
-#         self.rematch = re.match(regexp, self.matchstring)
-#         return bool(self.rematch)
-
-#     def group(self, i):
-#         return self.rematch.group(i)
 
 def process_matches_raxml(matches):
     
@@ -908,18 +898,6 @@ def parsehmmsearch(hmmer_out):
 
 
                         if dom_state == '!':
-                            # print("saving domain " + dom_num)
-                            # match_store[query_id]['align']['score'].append(domain_info[2])
-                            # match_store[query_id]['align']['bias'].append(domain_info[3])
-                            # match_store[query_id]['align']['cEvalue'].append(domain_info[4])
-                            # match_store[query_id]['align']['iEvalue'].append(domain_info[5])
-                            # match_store[query_id]['align']['hmmstart'].append(domain_info[6])
-                            # match_store[query_id]['align']['hmmend'].append(domain_info[7])
-                            # match_store[query_id]['align']['alifrom'].append(domain_info[9])
-                            # match_store[query_id]['align']['alito'].append(domain_info[10])
-                            # match_store[query_id]['align']['envfrom'].append(domain_info[12])
-                            # match_store[query_id]['align']['envto'].append(domain_info[13])
-                            # match_store[query_id]['align']['acc'].append(domain_info[15])
 
                             current_match['align']['score'].append(str(score_store[query_id]))
                             current_match['align']['dscore'].append(domain_info[2])
@@ -1220,30 +1198,7 @@ if __name__ == '__main__':
         logger.critical('Cannot write to tmp folder ' + options['tmp_folder'])
         quit()
 
-
     # print(json.dumps(options, indent=4))    
-
-    # print("Testing logger...")
-    # logger.debug('This is a debug message')
-    # logger.info('This is an info message')
-    # logger.warning('This is a warning message')
-    # logger.error('This is an error message')
-    # logger.critical('This is a critical message')
-    # quit()
-
-    # print(json.dumps(options, indent=4))
-
-    # testing
-    # options['msf_tree_folder'] = '/home/tgrego/dev/treegrafter/Test/PANTHER_mini/PANTHER12_Tree_MSF/'
-
-    # testing
-
-    # hmmsearch_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmsearch.out'
-    # hmmscan_file = '/home/tgrego/dev/treegrafter/Test/sample.fasta.hmmscan.out'
-
-    # matches = parsehmmsearch(hmmsearch_file)
-    # matches = parsehmmscan(hmmscan_file)
-    # print(matches)
 
     if options['hmmr_out'] is None:
         logger.info('Running ' + options['hmmr_mode'])
@@ -1286,84 +1241,3 @@ if __name__ == '__main__':
 
     logger.info('Done')
 
-
-    # test_input_querymsf = [
-    #     {
-    #         'hmmalign': [
-    #             'klialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
-    #         ],
-    #         'hmmend': [
-    #             '263'
-    #         ],
-    #         'hmmstart': [
-    #             '8'
-    #         ],
-    #         'matchalign': [
-    #             'LVIFTDIDGTLY-GDFH----IHEAFKRFITNGLFLVYSTGRNLQSFKDLQKNVHLPDILVGSCGSEIYQLGQDEFETNPYNQN--QAWIQYITQDNWDLQALYD-----------FVKKEFP----AAWPNLSEGVSLYKGSFLLTDSRQRDKLDVLMKKAFLNKYIISGHGHRFLDILPERADKGSSLQFVCKILKTDYTKSAAFGDSLNDVDLLCCAGQGFIVANAQSQNQRFQNVKVSYHEGDAIAKYLQQI'
-    #         ]
-    #     }, {
-    #         'hmmalign': [
-    #             'iklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
-    #         ],
-    #         'hmmend': [
-    #             '263'
-    #         ],
-    #         'hmmstart': [
-    #             '7'
-    #         ],
-    #         'matchalign': [
-    #             'YRVFVFDLDGTLLNDNLEISEKDRRNIEKL-SRKCYVVFASGRMLVSTLNVEKKFKRTFPTIAYNGAIVYLPEEGVILNEKIPPEVAKDIIEYIKPLNVHWQAYIDDV---LSKDNEKSYARHSYRVEPNLSELVSKMGTTKLLLIDT-PERLDELKEILSERFKDVVKVFKSFPTYLEIVPKNVDKGKALRFLRERMNWKKEEIVVFGDNENDLFMFEEAGLRVAMENAIEKVKEASDIVTLTNNDSGVSYVLERI'
-    #         ]
-    #     }
-    #     # , {
-    #     #     'hmmalign': [
-    #     #         'kpkiklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakalekyll',
-    #     #         'kpkik'
-    #     #     ],
-    #     #     'hmmend': [
-    #     #         '265',
-    #     #         '275'
-    #     #     ],
-    #     #     'hmmstart': [
-    #     #         '4',
-    #     #         '270'
-    #     #     ],
-    #     #     'matchalign': [
-    #     #         'RMPIKAVVTDLDGTLLDPQHCISNYAAEVLKKIKEKGICFIVATGRPYAEVFNRIRHCHLPDYIITSNGARIHDGAFNVVREHNLRPELVESLARVRTVKDPATNIYRGLT--PEVSAFHTDFQCTDRERFYELQ-ASELGDVHEIWFAGD-HDELVLLDNALREKYPGDLCCTFSLPHLLDCVPAGVNKGNGVREAAEMLGLALDEVACFGDGMNDESMLQVTSTSFIMANAQQRLKAVPHAQIISNADDGVAKKLEEMFF',
-    #     #         'RMPIK'
-    #     #     ]
-    #     # }
-    # ]
-
-    # test_query_id_list = iter([
-    #     'TETTS|EnsemblGenome=TTHERM_00590270|UniProtKB=I7M2B5',
-    #     'THEMA|EnsemblGenome=TM_0651|UniProtKB=Q9WZB9',
-    #     'LEIMA|EnsemblGenome=LmjF.28.1370|UniProtKB=Q4Q8C9',
-    #     'BACTN|EnsemblGenome=BT_4131|UniProtKB=Q8A090',
-    #     'SYNY3|Gene=BAA18460|UniProtKB=P74365'
-    # ])
-
-    # test_length = iter([
-    #     266,
-    #     266,
-    #     280,
-    #     266,
-    #     266
-    # ])
-
-    # for test_data in test_input_querymsf:
-    #     test_query_id = next(test_query_id_list)
-
-    #     test_query_id_str = stringify(test_query_id)
-
-    #     query_msf = _querymsf(test_data, next(test_length))
-
-    #     print(query_msf)
-
-    #     fasta_file = _generateFasta('PTHR10000', test_query_id_str, query_msf)
-
-    #     print(fasta_file)
-
-    #     result_string = _run_raxml('PTHR10000', test_query_id_str, fasta_file)
-
-    #     print(result_string)
