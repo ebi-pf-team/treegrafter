@@ -562,13 +562,10 @@ def runhmmr():
     if options['hmmr_bin']:
         hmmr_cmd = options['hmmr_bin'] + '/' + hmmr_cmd
 
-    # cutoff evalue
-    if options['hmmr_evalue']:
-        hmmr_cmd = hmmr_cmd + ' -E ' + str(options['hmmr_evalue'])
-
     # all the rest
-    hmmr_cmd = hmmr_cmd + ' --notextw --cpu ' + \
-        str(options['hmmr_cpus']) + ' -o ' + options['hmmr_out'] + \
+    hmmr_cmd = hmmr_cmd + ' --notextw --cpu ' + str(options['hmmr_cpus']) + \
+        ' -Z ' + options['hmmr_Z'] + ' -E ' + options['hmmr_E'] + ' --domE ' + options['hmmr_domE'] + ' --incdomE ' + options['hmmr_incdomE'] + \
+        ' -o ' + options['hmmr_out'] + \
         ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
 
 
@@ -1092,11 +1089,11 @@ def get_args():
 
     ap.add_argument(
         '-hb', '--hbin', default=None,
-        help='path to hmmr bin directory, PATH if None')
+        help='path to hmmer bin directory, PATH if None')
 
     ap.add_argument(
         '-hm', '--hmode', default='hmmsearch', choices=['hmmscan', 'hmmsearch'],
-        help='hmmr mode to use')
+        help='hmmer mode to use')
 
     ap.add_argument(
         '-am', '--amode', default='epang', choices=['raxml', 'epang'],
@@ -1108,15 +1105,27 @@ def get_args():
 
     ap.add_argument(
         '-hc', '--hcpus', default=1, type=int,
-        help="number of hmmr cpus")
+        help="number of hmmer cpus")
 
     ap.add_argument(
-        '-he', '--hevalue', default=None, type=float,
-        help="per-domain E-value cutoff for hmmer")
+        '-hZ', default=65000000, type=int,
+        help="hmmer set # of comparisons done, for E-value calculation")
+
+    ap.add_argument(
+        '-hE', default=0.001, type=float,
+        help="hmmer report sequences <= this E-value threshold in output")
+
+    ap.add_argument(
+        '-hdomE', default=0.000000001, type=float,
+        help="hmmer report domains <= this E-value threshold in output")
+
+    ap.add_argument(
+        '-hincdomE', default=0.000000001, type=float,
+        help="hmmer consider domains <= this E-value threshold as significant")
 
     ap.add_argument(
         '-ho', '--hout', default=None,
-        help="existing hmmr output file")
+        help="existing hmmer output file")
 
     ap.add_argument(
         '-hd', '--hdir', default=None,
@@ -1199,7 +1208,10 @@ if __name__ == '__main__':
     options['algo_mode'] = args['amode']
     options['algo_bin'] = args['abin']
     options['hmmr_cpus'] = args['hcpus']
-    options['hmmr_evalue'] = args['hevalue']
+    options['hmmr_Z'] = args['hZ']
+    options['hmmr_E'] = args['hE']
+    options['hmmr_domE'] = args['hdomE']
+    options['hmmr_incdomE'] = args['hincdomE']
     options['hmmr_dir'] = args['hdir']
     options['hmmr_out'] = args['hout']
     options['keep_tmp'] = args['keep']
@@ -1300,36 +1312,6 @@ if __name__ == '__main__':
         logger.info('Keeping tmp data folder ' + options['tmp_folder'])
 
     logger.info('Done')
-
-
-    # test_input_querymsf = [
-    #     {
-    #         'hmmalign': [
-    #             'klialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
-    #         ],
-    #         'hmmend': [
-    #             '263'
-    #         ],
-    #         'hmmstart': [
-    #             '8'
-    #         ],
-    #         'matchalign': [
-    #             'LVIFTDIDGTLY-GDFH----IHEAFKRFITNGLFLVYSTGRNLQSFKDLQKNVHLPDILVGSCGSEIYQLGQDEFETNPYNQN--QAWIQYITQDNWDLQALYD-----------FVKKEFP----AAWPNLSEGVSLYKGSFLLTDSRQRDKLDVLMKKAFLNKYIISGHGHRFLDILPERADKGSSLQFVCKILKTDYTKSAAFGDSLNDVDLLCCAGQGFIVANAQSQNQRFQNVKVSYHEGDAIAKYLQQI'
-    #         ]
-    #     }, {
-    #         'hmmalign': [
-    #             'iklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
-    #         ],
-    #         'hmmend': [
-    #             '263'
-    #         ],
-    #         'hmmstart': [
-    #             '7'
-    #         ],
-    #         'matchalign': [
-    #             'YRVFVFDLDGTLLNDNLEISEKDRRNIEKL-SRKCYVVFASGRMLVSTLNVEKKFKRTFPTIAYNGAIVYLPEEGVILNEKIPPEVAKDIIEYIKPLNVHWQAYIDDV---LSKDNEKSYARHSYRVEPNLSELVSKMGTTKLLLIDT-PERLDELKEILSERFKDVVKVFKSFPTYLEIVPKNVDKGKALRFLRERMNWKKEEIVVFGDNENDLFMFEEAGLRVAMENAIEKVKEASDIVTLTNNDSGVSYVLERI'
-    #         ]
-    #     }
     #     # , {
     #     #     'hmmalign': [
     #     #         'kpkiklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakalekyll',
