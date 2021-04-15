@@ -1175,7 +1175,7 @@ def get_args():
         help='if set, does not clear tmp folder')
 
     ap.add_argument(
-        '-e', "--evalue-cutoff", default=0.00000001, type=float,
+        '-e', "--evalue-cutoff", default=None, type=float,
         help="consider only matches from hmmer output with evalue <= provided cutoff")
 
     ap.add_argument(
@@ -1321,10 +1321,9 @@ if __name__ == '__main__':
         logger.info('Filtering best domains')
         matches = filter_best_domain(matches)
 
-
-
-    logger.info('Checking cutoff evalue')
-    matches = filter_evalue_cutoff(matches)
+    if options['evalue_cutoff']:
+        logger.info('Checking cutoff evalue')
+        matches = filter_evalue_cutoff(matches)
 
 
     logger.info('Loading annotations')
