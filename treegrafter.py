@@ -27,7 +27,7 @@ from tglib.re_matcher import re_matcher
 
 def process_matches_raxml(matches):
     
-    results = ["query_id\tpanther_id\tpanther_sf\tscore\tdscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
+    results = results_header
 
     for pthr in matches:
         logger.info('Processing panther id ' + pthr)
@@ -64,7 +64,7 @@ def process_matches_raxml(matches):
 def process_matches_epang(matches):
 
     logger.debug('Started running on EPA-NG mode')
-    results = ["query_id\tpanther_id\tpanther_sf\tscore\tdscore\tc_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
+    results = results_header
 
     for pthr in matches:
         logger.info('Processing panther id ' + pthr)
@@ -302,8 +302,9 @@ def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
             pathr + "\t" +
             pthrsf + "\t" +
             pthr_matches['score'][x] + "\t" +
-            pthr_matches['dscore'][x] + "\t" +
-            pthr_matches['cEvalue'][x] + "\t" +
+            pthr_matches['evalue'][x] + "\t" +
+            pthr_matches['domscore'][x] + "\t" +
+            pthr_matches['domevalue'][x] + "\t" +
             pthr_matches['hmmstart'][x] + "\t" +
             pthr_matches['hmmend'][x] + "\t" +
             pthr_matches['alifrom'][x] + "\t" +
@@ -441,8 +442,9 @@ def process_tree(pthr, result_tree, pthr_matches):
                 pthr + "\t" + 
                 pthrsf + "\t" +
                 pthr_matches[query_id]['score'][x] + "\t" +
-                pthr_matches[query_id]['dscore'][x] + "\t" +
-                pthr_matches[query_id]['cEvalue'][x] + "\t" +
+                pthr_matches[query_id]['evalue'][x] + "\t" +
+                pthr_matches[query_id]['domscore'][x] + "\t" +
+                pthr_matches[query_id]['domevalue'][x] + "\t" +
                 pthr_matches[query_id]['hmmstart'][x] + "\t" +
                 pthr_matches[query_id]['hmmend'][x] + "\t" +
                 pthr_matches[query_id]['alifrom'][x] + "\t" +
@@ -554,13 +556,20 @@ def runhmmr():
 
     panther_hmm = os.path.join(options['data_folder'], 'famhmm/binHmm')
 
-    hmmr_cmd = options['hmmr_mode'] + \
-        ' --notextw --cpu ' + \
-        str(options['hmmr_cpus']) + ' -o ' + options['hmmr_out'] + \
-        ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
 
+    # the binary
+    hmmr_cmd = options['hmmr_mode']
+
+    # path to binary
     if options['hmmr_bin']:
         hmmr_cmd = options['hmmr_bin'] + '/' + hmmr_cmd
+
+    # all the rest
+    hmmr_cmd = hmmr_cmd + ' --notextw --cpu ' + str(options['hmmr_cpus']) + \
+        ' -Z ' + options['hmmr_Z'] + ' -E ' + options['hmmr_E'] + ' --domE ' + options['hmmr_domE'] + ' --incdomE ' + options['hmmr_incdomE'] + \
+        ' -o ' + options['hmmr_out'] + \
+        ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
+
 
     exit_status = os.system(hmmr_cmd)
 
@@ -585,6 +594,7 @@ def parsehmmscan(hmmer_out):
 
     store_domain = []
     score_store = {}
+    evalue_store = {}
     matches = {}
 
     with open(hmmer_out) as fp:
@@ -640,8 +650,11 @@ def parsehmmscan(hmmer_out):
 
                     score_array = line.split()
 
-                    score_store[re.sub('\..*', '', score_array[8])] = float(score_array[1])
+                    matchid = re.sub('\..*', '', score_array[8])
+
+                    score_store[matchid] = float(score_array[1])
                     # print(score_store)
+                    evalue_store[matchid] = float(score_array[0])
 
                     line = fp.readline()
 
@@ -695,9 +708,9 @@ def parsehmmscan(hmmer_out):
                             'hmmstart': [],
                             'hmmend': [],
                             'score': [],
-                            'dscore': [],
-                            'cEvalue': [],
-                            'iEvalue': [],
+                            'evalue': [],
+                            'domscore': [],
+                            'domevalue': [],
                             'alifrom': [],
                             'alito': [],
                             'envfrom': [],
@@ -706,10 +719,10 @@ def parsehmmscan(hmmer_out):
                         }
 
                     matches[matchpthr][query_id]['score'].append(str(score_store[matchpthr]))
-                    matches[matchpthr][query_id]['dscore'].append(mark[2])
+                    matches[matchpthr][query_id]['evalue'].append(str(evalue_store[matchpthr]))
                     # matches[matchpthr][query_id]['bias'].append(mark[3])
-                    matches[matchpthr][query_id]['cEvalue'].append(mark[4])
-                    matches[matchpthr][query_id]['iEvalue'].append(mark[5])
+                    matches[matchpthr][query_id]['domscore'].append(mark[2])
+                    matches[matchpthr][query_id]['domevalue'].append(mark[5])
                     matches[matchpthr][query_id]['hmmstart'].append(mark[6])
                     matches[matchpthr][query_id]['hmmend'].append(mark[7])
                     matches[matchpthr][query_id]['alifrom'].append(mark[9])
@@ -752,6 +765,7 @@ def parsehmmscan(hmmer_out):
                 # print("END BLOCK")
                 align_found_n = 0
                 score_store = {}
+                evalue_store = {}
 
                 # print(json.dumps(matches, indent=4))
 
@@ -775,6 +789,7 @@ def parsehmmsearch(hmmer_out):
 
     match_store = {}
     score_store = {}
+    evalue_store = {}
     store_align = 0
     store_domain = []
 
@@ -823,6 +838,7 @@ def parsehmmsearch(hmmer_out):
                         # print(score_array)
 
                         score_store[stringify(score_array[8])] = float(score_array[1])
+                        evalue_store[stringify(score_array[8])] = float(score_array[0])
 
                     line = fp.readline()
 
@@ -876,9 +892,9 @@ def parsehmmsearch(hmmer_out):
                             'hmmstart': [],
                             'hmmend': [],
                             'score': [],
-                            'dscore': [],
-                            'cEvalue': [],
-                            'iEvalue': [],
+                            'evalue': [],
+                            'domscore': [],
+                            'domevalue': [],
                             'alifrom': [],
                             'alito': [],
                             'envfrom': [],
@@ -922,10 +938,11 @@ def parsehmmsearch(hmmer_out):
                             # match_store[query_id]['align']['acc'].append(domain_info[15])
 
                             current_match['align']['score'].append(str(score_store[query_id]))
-                            current_match['align']['dscore'].append(domain_info[2])
+                            current_match['align']['evalue'].append(str(evalue_store[query_id]))
+                            current_match['align']['domscore'].append(domain_info[2])
                             # current_match['align']['bias'].append(domain_info[3])
-                            current_match['align']['cEvalue'].append(domain_info[4])
-                            current_match['align']['iEvalue'].append(domain_info[5])
+                            # current_match['align']['cEvalue'].append(domain_info[4])
+                            current_match['align']['domevalue'].append(domain_info[5])
                             current_match['align']['hmmstart'].append(domain_info[6])
                             current_match['align']['hmmend'].append(domain_info[7])
                             current_match['align']['alifrom'].append(domain_info[9])
@@ -1013,6 +1030,7 @@ def parsehmmsearch(hmmer_out):
                 # print(json.dumps(match_store, indent=4))
 
                 score_store = {}
+                evalue_store = {}
                 store_domain = []
                 store_align = 0
 
@@ -1052,10 +1070,10 @@ def filter_best_domain(matches):
             # print(json.dumps(query, indent=4))
             # print(json.dumps(matches[panther][query], indent=4))
 
-            while len(matches[panther][query]['dscore']) > 1:
+            while len(matches[panther][query]['domscore']) > 1:
                 # print("score 1 " + matches[panther][query]['score'][0])
                 # print("score 2 " + matches[panther][query]['score'][1])
-                if matches[panther][query]['dscore'][0] > matches[panther][query]['dscore'][1]:
+                if matches[panther][query]['domscore'][0] > matches[panther][query]['domscore'][1]:
                     # print("DELETE 2")
                     for key in matches[panther][query]:
                         del matches[panther][query][key][1]
@@ -1065,6 +1083,22 @@ def filter_best_domain(matches):
                         del matches[panther][query][key][0]
 
     # print(json.dumps(matches, indent=4))
+    return matches
+
+
+def filter_evalue_cutoff(matches):
+
+    for panther in matches:
+        # print(json.dumps(panther, indent=4))
+        for query in dict(matches[panther]):
+            # print(json.dumps(query, indent=4))
+
+            # remove queries with evalou greater than the cutoff
+            if float(matches[panther][query]['evalue'][0]) > float(options['evalue_cutoff']):
+                del matches[panther][query]
+
+    # print(json.dumps(matches, indent=4))
+
     return matches
 
 
@@ -1082,11 +1116,11 @@ def get_args():
 
     ap.add_argument(
         '-hb', '--hbin', default=None,
-        help='path to hmmr bin directory, PATH if None')
+        help='path to hmmer bin directory, PATH if None')
 
     ap.add_argument(
         '-hm', '--hmode', default='hmmsearch', choices=['hmmscan', 'hmmsearch'],
-        help='hmmr mode to use')
+        help='hmmer mode to use')
 
     ap.add_argument(
         '-am', '--amode', default='epang', choices=['raxml', 'epang'],
@@ -1098,11 +1132,27 @@ def get_args():
 
     ap.add_argument(
         '-hc', '--hcpus', default=1, type=int,
-        help="number of hmmr cpus")
+        help="number of hmmer cpus")
+
+    ap.add_argument(
+        '-hZ', default=65000000, type=int,
+        help="hmmer set # of comparisons done, for E-value calculation")
+
+    ap.add_argument(
+        '-hE', default=0.001, type=float,
+        help="hmmer report sequences <= this E-value threshold in output")
+
+    ap.add_argument(
+        '-hdomE', default=0.000000001, type=float,
+        help="hmmer report domains <= this E-value threshold in output")
+
+    ap.add_argument(
+        '-hincdomE', default=0.000000001, type=float,
+        help="hmmer consider domains <= this E-value threshold as significant")
 
     ap.add_argument(
         '-ho', '--hout', default=None,
-        help="existing hmmr output file")
+        help="existing hmmer output file")
 
     ap.add_argument(
         '-hd', '--hdir', default=None,
@@ -1123,6 +1173,10 @@ def get_args():
     ap.add_argument(
         '-k', '--keep', action='store_true',
         help='if set, does not clear tmp folder')
+
+    ap.add_argument(
+        '-e', "--evalue-cutoff", default=0.00000001, type=float,
+        help="consider only matches from hmmer output with evalue <= provided cutoff")
 
     ap.add_argument(
         '-v', '--verbose', default='ERROR', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper,
@@ -1185,9 +1239,14 @@ if __name__ == '__main__':
     options['algo_mode'] = args['amode']
     options['algo_bin'] = args['abin']
     options['hmmr_cpus'] = args['hcpus']
+    options['hmmr_Z'] = args['hZ']
+    options['hmmr_E'] = args['hE']
+    options['hmmr_domE'] = args['hdomE']
+    options['hmmr_incdomE'] = args['hincdomE']
     options['hmmr_dir'] = args['hdir']
     options['hmmr_out'] = args['hout']
     options['keep_tmp'] = args['keep']
+    options['evalue_cutoff'] = args['evalue_cutoff']
     options['legacy'] = args['legacy']
     options['msf_tree_folder'] = os.path.join(options['data_folder'], 'Tree_MSF/')
     if args['tmp'] is None:
@@ -1219,6 +1278,9 @@ if __name__ == '__main__':
     if not os.path.isdir(options['tmp_folder']):
         logger.critical('Cannot write to tmp folder ' + options['tmp_folder'])
         quit()
+
+
+    results_header = ["query_id\tpanther_id\tpanther_sf\tscore\tevalue\tdom_score\tdom_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
 
     # print(json.dumps(options, indent=4))    
@@ -1259,6 +1321,12 @@ if __name__ == '__main__':
         logger.info('Filtering best domains')
         matches = filter_best_domain(matches)
 
+
+
+    logger.info('Checking cutoff evalue')
+    matches = filter_evalue_cutoff(matches)
+
+
     logger.info('Loading annotations')
     annotations = get_annotations()
     # print(annotations)
@@ -1285,36 +1353,6 @@ if __name__ == '__main__':
         logger.info('Keeping tmp data folder ' + options['tmp_folder'])
 
     logger.info('Done')
-
-
-    # test_input_querymsf = [
-    #     {
-    #         'hmmalign': [
-    #             'klialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
-    #         ],
-    #         'hmmend': [
-    #             '263'
-    #         ],
-    #         'hmmstart': [
-    #             '8'
-    #         ],
-    #         'matchalign': [
-    #             'LVIFTDIDGTLY-GDFH----IHEAFKRFITNGLFLVYSTGRNLQSFKDLQKNVHLPDILVGSCGSEIYQLGQDEFETNPYNQN--QAWIQYITQDNWDLQALYD-----------FVKKEFP----AAWPNLSEGVSLYKGSFLLTDSRQRDKLDVLMKKAFLNKYIISGHGHRFLDILPERADKGSSLQFVCKILKTDYTKSAAFGDSLNDVDLLCCAGQGFIVANAQSQNQRFQNVKVSYHEGDAIAKYLQQI'
-    #         ]
-    #     }, {
-    #         'hmmalign': [
-    #             'iklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakaleky'
-    #         ],
-    #         'hmmend': [
-    #             '263'
-    #         ],
-    #         'hmmstart': [
-    #             '7'
-    #         ],
-    #         'matchalign': [
-    #             'YRVFVFDLDGTLLNDNLEISEKDRRNIEKL-SRKCYVVFASGRMLVSTLNVEKKFKRTFPTIAYNGAIVYLPEEGVILNEKIPPEVAKDIIEYIKPLNVHWQAYIDDV---LSKDNEKSYARHSYRVEPNLSELVSKMGTTKLLLIDT-PERLDELKEILSERFKDVVKVFKSFPTYLEIVPKNVDKGKALRFLRERMNWKKEEIVVFGDNENDLFMFEEAGLRVAMENAIEKVKEASDIVTLTNNDSGVSYVLERI'
-    #         ]
-    #     }
     #     # , {
     #     #     'hmmalign': [
     #     #         'kpkiklialDlDGTLlnskkeiskrtlealkeakerGvkvviaTGrsraaviellkeldlgsplvtlnGalvyskqgevlfernldpevlrellelaeeegvalvaysedrssplveslhtiykepkvekvesleklleeapiskvlflstdeeklealrevleealegelsvtrsapdfleivpkgvsKgsglkrlleelgisleeviafGDgeNDlemLelaglgvamgnasekvkevadvvtasndedGvakalekyll',
