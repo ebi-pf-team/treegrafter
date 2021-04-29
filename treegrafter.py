@@ -556,7 +556,7 @@ def runhmmr():
 
     # all the rest
     hmmr_cmd = hmmr_cmd + ' --notextw --cpu ' + str(options['hmmr_cpus']) + \
-        ' -Z ' + options['hmmr_Z'] + ' -E ' + options['hmmr_E'] + ' --domE ' + options['hmmr_domE'] + ' --incdomE ' + options['hmmr_incdomE'] + \
+        ' -Z ' +  str(options['hmmr_Z']) + ' -E ' +  str(options['hmmr_E']) + ' --domE ' +  str(options['hmmr_domE']) + ' --incdomE ' +  str(options['hmmr_incdomE']) + \
         ' -o ' + options['hmmr_out'] + \
         ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
 
