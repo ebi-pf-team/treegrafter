@@ -291,6 +291,7 @@ def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
             query_id + "\t" +
             pathr + "\t" +
             pthrsf + "\t" +
+            str(commonAN) + "\t" +
             pthr_matches['score'][x] + "\t" +
             pthr_matches['evalue'][x] + "\t" +
             pthr_matches['domscore'][x] + "\t" +
@@ -431,6 +432,7 @@ def process_tree(pthr, result_tree, pthr_matches):
                 query_id + "\t" + 
                 pthr + "\t" + 
                 pthrsf + "\t" +
+                str(commonAN) + "\t" +
                 pthr_matches[query_id]['score'][x] + "\t" +
                 pthr_matches[query_id]['evalue'][x] + "\t" +
                 pthr_matches[query_id]['domscore'][x] + "\t" +
@@ -1258,7 +1260,7 @@ if __name__ == '__main__':
         quit()
 
 
-    results_header = ["query_id\tpanther_id\tpanther_sf\tscore\tevalue\tdom_score\tdom_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
+    results_header = ["query_id\tpanther_id\tpanther_sf\tnode_id\tscore\tevalue\tdom_score\tdom_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
 
     # print(json.dumps(options, indent=4))    
