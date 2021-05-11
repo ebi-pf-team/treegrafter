@@ -16,7 +16,7 @@ from tglib.re_matcher import re_matcher
 
 
 def process_matches_raxml(matches):
-    
+
     results = results_header
 
     for pthr in matches:
@@ -111,7 +111,7 @@ def generate_fasta_for_panthr(pthr, matches):
 
     # print(query_fasta)
 
-    fasta_out_file = os.path.join(options['tmp_folder'], f'{pthr}_query.fasta')
+    fasta_out_file = os.path.join(options['tmp_folder'], pthr + '_query.fasta')
 
     with open(fasta_out_file, 'w') as outfile:
         outfile.write(query_fasta)
@@ -130,8 +130,8 @@ def stringify(query_id):
 def _generateFasta(pathr, query_id, querymsf):
 
     # use static dir paths for testing. these are provided
-    fasta_in_file = os.path.join(options['msf_tree_folder'], f'{pathr}.AN.fasta')
-    fasta_out_file = os.path.join(options['tmp_folder'], f'{query_id}.{pathr}.fasta')
+    fasta_in_file = os.path.join(options['msf_tree_folder'], pathr + '.AN.fasta')
+    fasta_out_file = os.path.join(options['tmp_folder'], query_id + '.' + pathr + '.fasta')
 
     with open(fasta_out_file, 'w') as outfile:
         with open(fasta_in_file, 'r') as infile:
@@ -207,10 +207,10 @@ def _run_epang(pthr, query_fasta, annotations):
 
     # print(query_fasta)
 
-    referece_fasta = os.path.join(options['msf_tree_folder'], f'{pthr}.AN.fasta')
+    referece_fasta = os.path.join(options['msf_tree_folder'], pthr + '.AN.fasta')
     # print(referece_fasta)
 
-    bifurnewick_in = os.path.join(options['msf_tree_folder'], f'{pthr}.bifurcate.newick')
+    bifurnewick_in = os.path.join(options['msf_tree_folder'], pthr + '.bifurcate.newick')
 
     epang_dir = os.path.join(options['tmp_folder'], pthr + '_epang')
 
@@ -238,9 +238,9 @@ def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
 
     # print(fasta_file)
 
-    bifurnewick_in = os.path.join(options['msf_tree_folder'], f'{pathr}.bifurcate.newick')
+    bifurnewick_in = os.path.join(options['msf_tree_folder'], pathr + '.bifurcate.newick')
 
-    raxml_dir = os.path.join(options['tmp_folder'], f'{pathr}_{query_id}_raxml')
+    raxml_dir = os.path.join(options['tmp_folder'], pathr + '_' + query_id + '_raxml')
 
     os.mkdir(raxml_dir)
 
@@ -1173,7 +1173,7 @@ def get_args():
 
 
 def align_length(pthr):
-    pthr_fasta_file = os.path.join(options['msf_tree_folder'], f'{pthr}.AN.fasta')
+    pthr_fasta_file = os.path.join(options['msf_tree_folder'], pthr + '.AN.fasta')
 
     try:
         with open(pthr_fasta_file) as f:
@@ -1263,7 +1263,7 @@ if __name__ == '__main__':
     results_header = ["query_id\tpanther_id\tpanther_sf\tnode_id\tscore\tevalue\tdom_score\tdom_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
 
 
-    # print(json.dumps(options, indent=4))    
+    # print(json.dumps(options, indent=4))
 
     if options['hmmr_out'] is None:
         logger.info('Running ' + options['hmmr_mode'])
