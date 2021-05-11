@@ -419,7 +419,7 @@ def process_tree(pthr, result_tree, pthr_matches):
             pthrsf = pthrsf_match.group(1)
         else:
             logger.warning("parsing annotations, could not get SF family for " + str(commonAN))
-            
+
         # print(pthrsf)
 
         # print(pthr_matches)
@@ -429,8 +429,8 @@ def process_tree(pthr, result_tree, pthr_matches):
         for x in range(0, len(pthr_matches[query_id]['hmmstart'])):
             # print(x)
             results_pthr.append(
-                query_id + "\t" + 
-                pthr + "\t" + 
+                query_id + "\t" +
+                pthr + "\t" +
                 pthrsf + "\t" +
                 str(commonAN) + "\t" +
                 pthr_matches[query_id]['score'][x] + "\t" +
@@ -541,7 +541,7 @@ def _commonancestor(pathr, mapANs):
 
 def runhmmr():
 
-    
+
     options['hmmr_out'] = os.path.join(options['hmmr_dir'],
         os.path.basename(options['fasta_input']) + \
         '.' + options['hmmr_mode'] + '.out')
@@ -748,7 +748,7 @@ def parsehmmscan(hmmer_out):
                     line = fp.readline()
 
                     matches[matchpthr][query_id]['matchalign'].append(line.split()[2])
-    
+
                     line = fp.readline()
 
                     # print(json.dumps(matches[matchpthr][query_id], indent=4))
@@ -876,8 +876,8 @@ def parsehmmsearch(hmmer_out):
 
                     # match_store[query_id] = {
                     current_match = {
-                        'panther_id': matchpthr, 
-                        'score': score_store[query_id], 
+                        'panther_id': matchpthr,
+                        'score': score_store[query_id],
                         'align': {
                             'hmmalign': [],
                             'matchalign': [],
@@ -962,7 +962,7 @@ def parsehmmsearch(hmmer_out):
                     hmmalign_seq = hmmalign_array[2]
 
 
-                    
+
                     # match_store[query_id]['align']['hmmalign'].append(hmmalign_seq)
 
                     line = fp.readline()
