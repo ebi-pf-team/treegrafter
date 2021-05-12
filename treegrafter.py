@@ -551,15 +551,11 @@ def runhmmr():
 
     panther_hmm = os.path.join(options['data_folder'], 'famhmm/binHmm')
 
-
-    # the binary
-    hmmr_cmd = options['hmmr_mode']
-
     # path to binary
     if not options['hmmr_bin']:
         options['hmmr_bin'] = options['hmmr_mode']
 
-    # all the rest
+    # build the command
     hmmr_cmd = options['hmmr_bin'] + \
         ' --notextw --cpu ' + str(options['hmmr_cpus']) + \
         ' -Z ' +  str(options['hmmr_Z']) + ' -E ' +  str(options['hmmr_E']) + ' --domE ' +  str(options['hmmr_domE']) + ' --incdomE ' +  str(options['hmmr_incdomE']) + \
