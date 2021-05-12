@@ -216,12 +216,14 @@ def _run_epang(pthr, query_fasta, annotations):
 
     os.mkdir(epang_dir)
 
-    epang_cmd = 'epa-ng -G 0.05 -m WAG -T 4 -t ' + bifurnewick_in + \
+    if not options['algo_bin']:
+        options['algo_bin'] = 'epa-ng'
+
+
+    epang_cmd = options['algo_bin'] + \
+                ' -G 0.05 -m WAG -T 4 -t ' + bifurnewick_in + \
                 ' -s ' + referece_fasta + \
                 ' -q ' + query_fasta + ' -w ' + epang_dir + ' >/dev/null'
-
-    if options['algo_bin']:
-        epang_cmd = options['algo_bin'] + '/' + epang_cmd
 
     logger.debug('running epa_ng cmd: ' + epang_cmd)
 
@@ -244,12 +246,13 @@ def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
 
     os.mkdir(raxml_dir)
 
-    raxml_cmd = 'raxmlHPC-PTHREADS-SSE3 -f y -p 12345 -t ' + bifurnewick_in + \
+    if not options['algo_bin']:
+        options['algo_bin'] = 'raxmlHPC-PTHREADS-SSE3'
+
+    raxml_cmd = options['algo_bin'] + \
+                ' -f y -p 12345 -t ' + bifurnewick_in + \
                 ' -G 0.05 -m PROTGAMMAWAG -T 4 -s ' + fasta_file + \
                 ' -n ' + pathr + ' -w ' + raxml_dir + ' >/dev/null'
-
-    if options['algo_bin']:
-        raxml_cmd = options['algo_bin'] + '/' + raxml_cmd
 
     # print('RAXML_CMD: ' + raxml_cmd)
 
@@ -1108,7 +1111,7 @@ def get_args():
 
     ap.add_argument(
         '-ab', '--abin',
-        help='path to RAxML/EPA-ng bin directory, PATH if None')
+        help='path to RAxML/EPA-ng binary, PATH if None')
 
     ap.add_argument(
         '-hc', '--hcpus', default=1, type=int,
