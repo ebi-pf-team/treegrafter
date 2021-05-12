@@ -556,15 +556,15 @@ def runhmmr():
     hmmr_cmd = options['hmmr_mode']
 
     # path to binary
-    if options['hmmr_bin']:
-        hmmr_cmd = options['hmmr_bin'] + '/' + hmmr_cmd
+    if not options['hmmr_bin']:
+        options['hmmr_bin'] = options['hmmr_mode']
 
     # all the rest
-    hmmr_cmd = hmmr_cmd + ' --notextw --cpu ' + str(options['hmmr_cpus']) + \
+    hmmr_cmd = options['hmmr_bin'] + \
+        ' --notextw --cpu ' + str(options['hmmr_cpus']) + \
         ' -Z ' +  str(options['hmmr_Z']) + ' -E ' +  str(options['hmmr_E']) + ' --domE ' +  str(options['hmmr_domE']) + ' --incdomE ' +  str(options['hmmr_incdomE']) + \
         ' -o ' + options['hmmr_out'] + \
         ' ' + panther_hmm + ' ' + options['fasta_input'] + ' > /dev/null'
-
 
     exit_status = os.system(hmmr_cmd)
 
@@ -1099,7 +1099,7 @@ def get_args():
 
     ap.add_argument(
         '-hb', '--hbin', default=None,
-        help='path to hmmer bin directory, PATH if None')
+        help='path to hmmer binary, PATH if None')
 
     ap.add_argument(
         '-hm', '--hmode', default='hmmsearch', choices=['hmmscan', 'hmmsearch'],
