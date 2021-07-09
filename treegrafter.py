@@ -1231,6 +1231,7 @@ if __name__ == '__main__':
     if args['tmp'] is None:
         options['tmp_folder'] = tempfile.mkdtemp()
     else:
+        os.makedirs(args['tmp'], exist_ok=True)
         options['tmp_folder'] = tempfile.mkdtemp(dir=args['tmp'])
     if options['hmmr_dir'] is None:
         options['hmmr_dir'] = options['tmp_folder']
