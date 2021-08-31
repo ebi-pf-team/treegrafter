@@ -44,7 +44,7 @@ def process_matches_raxml(matches):
             # print(fasta_file)
 
             query_result = _run_raxml(
-                pthr, query_id, fasta_file, annotations, matches[pthr][query_id])
+                pthr, query_id, fasta_file, matches[pthr][query_id])
             results += query_result
             # print(result_string)
 
@@ -68,7 +68,7 @@ def process_matches_epang(matches):
                   ' due to empty query fasta')
             continue
 
-        result_tree = _run_epang(pthr, query_fasta_file, annotations)
+        result_tree = _run_epang(pthr, query_fasta_file)
 
         if not result_tree:
             logger.warning('Skipping PANTHER id ' + pthr +
@@ -203,7 +203,7 @@ def _querymsf(matchdata, pthrAlignLength):
     return querymsf.upper()
 
 
-def _run_epang(pthr, query_fasta, annotations):
+def _run_epang(pthr, query_fasta):
 
     # print(query_fasta)
 
@@ -236,7 +236,7 @@ def _run_epang(pthr, query_fasta, annotations):
     return epang_dir + '/epa_result.jplace'
 
 
-def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
+def _run_raxml(pathr, query_id, fasta_file, pthr_matches):
 
     # print(fasta_file)
 
@@ -274,17 +274,24 @@ def _run_raxml(pathr, query_id, fasta_file, annotations, pthr_matches):
     if commonAN is None:
         commonAN = 'root'
 
-    annot = annotations[pathr + ':' + str(commonAN)]
-    # print(annot)
-    # result = query_id + "\t" + pathr + "\t" + annot + "\n"
+
+    annot_file = os.path.join(options['tmp_folder'], 'annotations', pathr + ':' + str(commonAN))
+
+    try:
+        with open(annot_file, 'r') as annot_in:
+            annot = annot_in.read()
+    except FileNotFoundError:
+        logger.warning("annotations for " + pathr + ':' + str(commonAN) + " do not exist")
+        annot = ''
 
     pthrsf_match = re.match('.*?PTHR\d+:(SF\d+)', annot)
-    pthrsf = pthrsf_match.group(1)
-    # print(pthrsf)
 
-    # print(pthr_matches)
-    # query_matches = pthr_matches[query_id]
-    # print(query_matches)
+    pthrsf = ''
+    if pthrsf_match:
+        pthrsf = pthrsf_match.group(1)
+    else:
+        logger.warning(
+            "parsing annotations, could not get SF family for " + str(commonAN))
 
     results = []
 
@@ -412,8 +419,16 @@ def process_tree(pthr, result_tree, pthr_matches):
         if commonAN is None:
             commonAN = 'root'
 
-        annot = annotations[pthr + ':' + str(commonAN)]
-        # print(annot)
+        # annot = annotations[pthr + ':' + str(commonAN)]
+
+        annot_file = os.path.join(options['tmp_folder'], 'annotations', pthr + ':' + str(commonAN))
+
+        try:
+            with open(annot_file, 'r') as annot_in:
+                annot = annot_in.read()
+        except FileNotFoundError:
+            logger.warning("annotations for " + pthr + ':' + str(commonAN) + " do not exist")
+            annot = ''
 
         pthrsf_match = re.match('.*?PTHR\d+:(SF\d+)', annot)
 
@@ -423,11 +438,6 @@ def process_tree(pthr, result_tree, pthr_matches):
         else:
             logger.warning("parsing annotations, could not get SF family for " + str(commonAN))
 
-        # print(pthrsf)
-
-        # print(pthr_matches)
-        # query_matches = pthr_matches[query_id]
-        # print(query_matches)
 
         for x in range(0, len(pthr_matches[query_id]['hmmstart'])):
             # print(x)
@@ -1192,16 +1202,21 @@ def get_annotations():
     annot_file = os.path.join(options['data_folder'], 'PAINT_Annotations/PAINT_Annotatations_TOTAL.txt')
     # print(annot_file)
 
-    annot = {}
+    annot_dir = os.path.join(options['tmp_folder'], 'annotations')
+
+    os.mkdir(annot_dir)
+
     with open(annot_file) as f:
         for line in f:
             line = line.strip()
             # print(line)
             line_array = line.split("\t")
             # print(line_array)
-            annot[line_array[0]] = line_array[1]
 
-    return annot
+            with open(annot_dir + '/' + line_array[0], 'w') as outfile:
+                outfile.write(line_array[1])
+
+    return 0
 
 
 if __name__ == '__main__':
@@ -1285,8 +1300,7 @@ if __name__ == '__main__':
 
 
     logger.info('Loading annotations')
-    annotations = get_annotations()
-    # print(annotations)
+    get_annotations()
 
     results = []
 
