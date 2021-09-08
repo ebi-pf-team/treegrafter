@@ -1214,7 +1214,7 @@ def get_annotations():
             # print(line_array)
 
             with open(annot_dir + '/' + line_array[0], 'w') as outfile:
-                outfile.write(line_array[1])
+                outfile.write(line_array[1] + "\t" + line_array[2])
 
     return 0
 
@@ -1275,7 +1275,7 @@ if __name__ == '__main__':
         quit()
 
 
-    results_header = ["query_id\tpanther_id\tpanther_sf\tnode_id\tscore\tevalue\tdom_score\tdom_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\n"]
+    results_header = ["query_id\tpanther_id\tpanther_sf\tnode_id\tscore\tevalue\tdom_score\tdom_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\tptn_id\n"]
 
 
     # print(json.dumps(options, indent=4))
