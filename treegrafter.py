@@ -1090,6 +1090,33 @@ def filter_evalue_cutoff(matches):
     return matches
 
 
+def align_length(pthr):
+    pthr_fasta_file = os.path.join(
+        options['msf_tree_folder'], pthr + '.AN.fasta')
+
+    try:
+        with open(pthr_fasta_file) as f:
+            file = f.read().split('>')
+            first_seq = file[1]
+            first_seq = re.sub(r'\A[^\n]+', '', first_seq)
+            first_seq = re.sub(r'\n', '', first_seq)
+            seq_length = len(first_seq)
+    except IOError:
+        logger.error("Could not find alignment for " + pthr)
+        return 0
+
+    return seq_length
+
+
+def check_preprocessed():
+    annot_dir = os.path.join(options['data_folder'], 'PAINT_Annotations')
+
+    is_prepocessed = os.path.exists(os.path.join(annot_dir, 'preprocessed'))
+
+    return is_prepocessed
+
+
+
 def get_args():
     """
     Command line arguments parser.
@@ -1180,52 +1207,6 @@ def get_args():
     return args
 
 
-def align_length(pthr):
-    pthr_fasta_file = os.path.join(options['msf_tree_folder'], pthr + '.AN.fasta')
-
-    try:
-        with open(pthr_fasta_file) as f:
-            file = f.read().split('>')
-            first_seq = file[1]
-            first_seq = re.sub(r'\A[^\n]+', '', first_seq)
-            first_seq = re.sub(r'\n', '', first_seq)
-            seq_length = len(first_seq)
-    except IOError:
-        logger.error("Could not find alignment for " + pthr)
-        return 0
-
-    return seq_length
-
-
-# def get_annotations():
-#     annot_file = os.path.join(options['data_folder'], 'PAINT_Annotations/PAINT_Annotatations_TOTAL.txt')
-#     # print(annot_file)
-
-#     annot_dir = os.path.join(options['tmp_folder'], 'annotations')
-
-#     os.mkdir(annot_dir)
-
-#     with open(annot_file) as f:
-#         for line in f:
-#             line = line.strip()
-#             # print(line)
-#             line_array = line.split("\t")
-#             # print(line_array)
-
-#             with open(annot_dir + '/' + line_array[0], 'w') as outfile:
-#                 outfile.write(line_array[1] + "\t" + line_array[2])
-
-#     return 0
-
-
-def check_preprocessed():
-    annot_dir = os.path.join(options['data_folder'], 'PAINT_Annotations')
-
-    is_prepocessed = os.path.exists(os.path.join(annot_dir, 'preprocessed'))
-
-    return is_prepocessed
-
-
 
 if __name__ == '__main__':
 
@@ -1312,9 +1293,6 @@ if __name__ == '__main__':
         logger.info('Checking cutoff evalue')
         matches = filter_evalue_cutoff(matches)
 
-
-    # logger.info('Loading annotations')
-    # get_annotations()
 
     results = []
 

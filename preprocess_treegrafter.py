@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import shutil
-
 import argparse
 import logging
 
