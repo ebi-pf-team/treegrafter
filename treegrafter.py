@@ -274,8 +274,7 @@ def _run_raxml(pathr, query_id, fasta_file, pthr_matches):
     if commonAN is None:
         commonAN = 'root'
 
-
-    annot_file = os.path.join(options['tmp_folder'], 'annotations', pathr + ':' + str(commonAN))
+    annot_file = (options['data_folder'], 'PAINT_Annotations', pathr + ':' + str(commonAN))
 
     try:
         with open(annot_file, 'r') as annot_in:
@@ -421,7 +420,7 @@ def process_tree(pthr, result_tree, pthr_matches):
 
         # annot = annotations[pthr + ':' + str(commonAN)]
 
-        annot_file = os.path.join(options['tmp_folder'], 'annotations', pthr + ':' + str(commonAN))
+        annot_file = os.path.join(options['data_folder'], 'PAINT_Annotations', pthr + ':' + str(commonAN))
 
         try:
             with open(annot_file, 'r') as annot_in:
@@ -1198,25 +1197,34 @@ def align_length(pthr):
     return seq_length
 
 
-def get_annotations():
-    annot_file = os.path.join(options['data_folder'], 'PAINT_Annotations/PAINT_Annotatations_TOTAL.txt')
-    # print(annot_file)
+# def get_annotations():
+#     annot_file = os.path.join(options['data_folder'], 'PAINT_Annotations/PAINT_Annotatations_TOTAL.txt')
+#     # print(annot_file)
 
-    annot_dir = os.path.join(options['tmp_folder'], 'annotations')
+#     annot_dir = os.path.join(options['tmp_folder'], 'annotations')
 
-    os.mkdir(annot_dir)
+#     os.mkdir(annot_dir)
 
-    with open(annot_file) as f:
-        for line in f:
-            line = line.strip()
-            # print(line)
-            line_array = line.split("\t")
-            # print(line_array)
+#     with open(annot_file) as f:
+#         for line in f:
+#             line = line.strip()
+#             # print(line)
+#             line_array = line.split("\t")
+#             # print(line_array)
 
-            with open(annot_dir + '/' + line_array[0], 'w') as outfile:
-                outfile.write(line_array[1] + "\t" + line_array[2])
+#             with open(annot_dir + '/' + line_array[0], 'w') as outfile:
+#                 outfile.write(line_array[1] + "\t" + line_array[2])
 
-    return 0
+#     return 0
+
+
+def check_preprocessed():
+    annot_dir = os.path.join(options['data_folder'], 'PAINT_Annotations')
+
+    is_prepocessed = os.path.exists(os.path.join(annot_dir, 'preprocessed'))
+
+    return is_prepocessed
+
 
 
 if __name__ == '__main__':
@@ -1275,6 +1283,12 @@ if __name__ == '__main__':
         quit()
 
 
+    logger.info('Checking if data is preprocessed')
+    if not check_preprocessed():
+        # get the best domain only
+        logger.critical('Panther Data is not preprocessed. Please run preprocess_treegrafter.py on the data folder.')
+        quit()
+
     results_header = ["query_id\tpanther_id\tpanther_sf\tnode_id\tscore\tevalue\tdom_score\tdom_evalue\thmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\tannotations\tptn_id\n"]
 
 
@@ -1299,8 +1313,8 @@ if __name__ == '__main__':
         matches = filter_evalue_cutoff(matches)
 
 
-    logger.info('Loading annotations')
-    get_annotations()
+    # logger.info('Loading annotations')
+    # get_annotations()
 
     results = []
 
