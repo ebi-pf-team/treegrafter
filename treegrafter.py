@@ -274,7 +274,8 @@ def _run_raxml(pathr, query_id, fasta_file, pthr_matches):
     if commonAN is None:
         commonAN = 'root'
 
-    annot_file = (options['data_folder'], 'PAINT_Annotations', pathr + ':' + str(commonAN))
+    annot_file = os.path.join(options['data_folder'], 'PAINT_Annotations', pathr + ':' + str(commonAN))
+
 
     try:
         with open(annot_file, 'r') as annot_in:
