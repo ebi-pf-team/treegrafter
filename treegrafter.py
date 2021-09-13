@@ -265,11 +265,11 @@ def _run_raxml(pathr, query_id, fasta_file, pthr_matches):
 
     # print(exit_status)
 
-    mapANs = _mapto(raxml_dir, pathr, query_id)
+    mapANs = _mapto(raxml_dir, pathr)
     # print(mapANs)
 
     commonAN = _commonancestor(pathr, mapANs)
-    # print(commonAN)
+
 
     if commonAN is None:
         commonAN = 'root'
@@ -349,8 +349,6 @@ def process_tree(pthr, result_tree, pthr_matches):
         r'AN\d+', r'', newick_string)
     newick_string = re.sub(
         r'BI\d+', r'', newick_string)
-
-
     # print(newick_string)
 
     mytree = Phylo.read(NewickIO.StringIO(newick_string), 'newick')
@@ -363,7 +361,6 @@ def process_tree(pthr, result_tree, pthr_matches):
         # print(placement['n'])
         # print(placement['p'])
         query_id = placement['n'][0]
-        # print('query: ' + str(query_id))
 
         child_ids = []
         ter = []
@@ -414,7 +411,6 @@ def process_tree(pthr, result_tree, pthr_matches):
             # return child_ids
 
         commonAN = _commonancestor(pthr, child_ids)
-        # print(commonAN)
 
         if commonAN is None:
             commonAN = 'root'
@@ -464,7 +460,7 @@ def process_tree(pthr, result_tree, pthr_matches):
     return results_pthr
 
 
-def _mapto(raxml_dir, pathr, query_id):
+def _mapto(raxml_dir, pathr):
 
     # print(raxml_dir, pathr, query_id)
 

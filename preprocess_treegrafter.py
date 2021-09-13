@@ -50,9 +50,8 @@ if __name__ == '__main__':
     logger.info('Preprocessing tregrafter data on ' + data_folder)
 
     annot_dir = os.path.join(data_folder, 'PAINT_Annotations')
-    print(annot_dir)
+
     annot_file = os.path.join(annot_dir, 'PAINT_Annotatations_TOTAL.txt')
-    print(annot_file)
 
     with open(annot_file) as f:
         for line in f:
