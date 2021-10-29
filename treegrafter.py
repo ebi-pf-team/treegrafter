@@ -31,6 +31,10 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1):
     for pthr in matches:
         query_fasta_file = generate_fasta_for_panthr(pthr, matches[pthr],
                                                      datadir, tempdir)
+        if not query_fasta_file:
+            # No sequence to graft
+            continue
+
         result_tree = _run_epang(pthr, query_fasta_file, datadir, tempdir,
                                  binary=binary, threads=threads)
 
@@ -55,10 +59,14 @@ def generate_fasta_for_panthr(pthr, matches, datadir, tempdir):
 
         # and the body lines
         for i in range(0, len(querymsf), 80):
-            query_fasta += re.sub(r"[UO]", r"X", querymsf[i:i + 80], flags=re.I) + '\n'
+            query_fasta += re.sub(r"[UO]", r"X", querymsf[i:i + 80],
+                                  flags=re.I)
+            query_fasta += '\n'
+
+    if not query_fasta:
+        return None
 
     fasta_out_file = os.path.join(tempdir, pthr + '_query.fasta')
-
     with open(fasta_out_file, 'wt') as outfile:
         outfile.write(query_fasta)
 
@@ -74,8 +82,8 @@ def stringify(query_id):
 
 
 def _querymsf(matchdata, pthrAlignLength):
-
-    # matchdata contains: hmmstart, hmmend, hmmalign and matchalign, as arrays (multiple modules possible)
+    # matchdata contains: hmmstart, hmmend, hmmalign and matchalign,
+    # as arrays (multiple modules possible)
 
     # N-terminaly padd the sequence
     # position 1 until start is filled with '-'
@@ -113,9 +121,9 @@ def _querymsf(matchdata, pthrAlignLength):
     # error check (is this required?)
     if len(querymsf) != pthrAlignLength:
         # then something is wrong
-        sys.stderr.errors("Error: length of query MSF longer than expected "
-                          "PANTHER alignment length: expected {}, "
-                          "got {}.".format(pthrAlignLength, len(querymsf)))
+        sys.stderr.write("Error: length of query MSF longer than expected "
+                         "PANTHER alignment length: expected {}, "
+                         "got {}.".format(pthrAlignLength, len(querymsf)))
         sys.exit(1)
 
     return querymsf.upper()
@@ -288,9 +296,6 @@ def parsehmmsearch(hmmer_out):
 
                     m = ReMatcher(line)
                     if m.match(r'\s+\[No individual domains that satisfy reporting thresholds'):
-                        sys.stderr.write("No individual domains that satisfy "
-                                         "reporting thresholds "
-                                         "for {}.\n".format(query_id))
                         store_align = False
                         line = fp.readline()
                         continue
