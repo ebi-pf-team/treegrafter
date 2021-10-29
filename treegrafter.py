@@ -196,7 +196,7 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
         annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr, commonAN)
 
         with open(annot_file, 'rt') as annot_in:
-            annot = annot_in.read()
+            annot = annot_in.read().rstrip()
 
         pthrsf_match = re.match('.*?PTHR\d+:(SF\d+)', annot)
 
