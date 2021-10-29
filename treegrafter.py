@@ -31,8 +31,8 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1):
     for pthr in matches:
         query_fasta_file = generate_fasta_for_panthr(pthr, matches[pthr],
                                                      datadir, tempdir)
-        result_tree = _run_epang(pthr, query_fasta_file, tempdir, binary,
-                                 threads)
+        result_tree = _run_epang(pthr, query_fasta_file, datadir, tempdir,
+                                 binary=binary, threads=threads)
 
         pthr_results = process_tree(pthr, result_tree, matches[pthr], datadir)
 
@@ -185,10 +185,6 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
                 child_ids.append(AN_label[leaf.name])
 
         commonAN = _commonancestor(pthr, child_ids, datadir)
-
-        if commonAN is None:
-            commonAN = 'root'
-
         annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr, commonAN)
 
         with open(annot_file, 'rt') as annot_in:
@@ -225,7 +221,7 @@ def _commonancestor(pathr, mapANs, datadir):
     newick_in = os.path.join(datadir, "Tree_MSF", "{}.newick".format(pathr))
     newtree = Phylo.read(newick_in, "newick")
     commonancestor = newtree.common_ancestor(mapANs)
-    return commonancestor
+    return str(commonancestor) if commonancestor else "root"
 
 
 def parsehmmsearch(hmmer_out):
@@ -490,6 +486,7 @@ protein sequences, using annotated phylogenetic trees.
     if args.evalue:
         matches = filter_evalue_cutoff(matches, args.evalue)
 
+    os.makedirs(args.tempdir, exist_ok=True)
     tempdir = tempfile.mkdtemp(dir=args.tempdir)
 
     if args.output == "-":
