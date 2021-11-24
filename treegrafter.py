@@ -81,28 +81,28 @@ def stringify(query_id):
     return query_id
 
 
-def _querymsf(matchdata, pthrAlignLength):
+def _querymsf(match_data, pthr_align_length):
     # matchdata contains: hmmstart, hmmend, hmmalign and matchalign,
     # as arrays (multiple modules possible)
 
     # N-terminaly padd the sequence
     # position 1 until start is filled with '-'
 
-    querymsf = ((int(matchdata['hmmstart'][0]) - 1) * '-')
+    querymsf = ((int(match_data['hmmstart'][0]) - 1) * '-')
 
     # loop the elements/domains
-    for i in range(0, len(matchdata['matchalign'])):
+    for i in range(0, len(match_data['matchalign'])):
 
         # if this is not the first element, fill in the gap between the hits
         if i > 0:
-            start = int(matchdata['hmmstart'][i])
-            end = int(matchdata['hmmend'][i-1])
+            start = int(match_data['hmmstart'][i])
+            end = int(match_data['hmmend'][i-1])
             # This bridges the query_id gap between the hits
             querymsf += (start - end - 1) * '-'
 
         # extract the query string
-        matchalign = matchdata['matchalign'][i]
-        hmmalign = matchdata['hmmalign'][i]
+        matchalign = match_data['matchalign'][i]
+        hmmalign = match_data['hmmalign'][i]
 
         # loop the sequence
         for j in range(0, len(hmmalign)):
@@ -114,16 +114,16 @@ def _querymsf(matchdata, pthrAlignLength):
 
     # C-terminaly padd the sequence
     # get the end of the last element/domain
-    last_end = int(matchdata['hmmend'][-1])
+    last_end = int(match_data['hmmend'][-1])
     # and padd out to fill the msf length
-    querymsf += (int(pthrAlignLength) - last_end) * '-'
+    querymsf += (pthr_align_length - last_end) * '-'
 
     # error check (is this required?)
-    if len(querymsf) != pthrAlignLength:
+    if len(querymsf) != pthr_align_length:
         # then something is wrong
         sys.stderr.write("Error: length of query MSF longer than expected "
                          "PANTHER alignment length: expected {}, "
-                         "got {}.".format(pthrAlignLength, len(querymsf)))
+                         "got {}.".format(pthr_align_length, len(querymsf)))
         sys.exit(1)
 
     return querymsf.upper()
@@ -161,10 +161,10 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
     tree_string = classification_json['tree']
     matches = re.findall(r'AN(\d+):\d+\.\d+\{(\d+)\}', tree_string)
 
-    AN_label = {}
+    an_label = {}
     for [an, r] in matches:
-        AN_label['AN' + an] = 'R' + r
-        AN_label['R' + r] = 'AN' + an
+        an_label['AN' + an] = 'R' + r
+        an_label['R' + r] = 'AN' + an
 
     newick_string = re.sub(
         r'(AN\d+)?\:\d+\.\d+{(\d+)}', r'R\g<2>', tree_string)
@@ -190,10 +190,11 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
             comonancestor = mytree.common_ancestor(ter)
 
             for leaf in comonancestor.get_terminals():
-                child_ids.append(AN_label[leaf.name])
+                child_ids.append(an_label[leaf.name])
 
-        commonAN = _commonancestor(pthr, child_ids, datadir)
-        annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr, commonAN)
+        common_an = _commonancestor(pthr, child_ids, datadir)
+        annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr,
+                                  common_an)
 
         with open(annot_file, 'rt') as annot_in:
             annot = annot_in.read().rstrip()
@@ -209,7 +210,7 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
                 query_id + "\t" +
                 pthr + "\t" +
                 pthrsf + "\t" +
-                str(commonAN) + "\t" +
+                str(common_an) + "\t" +
                 pthr_matches[query_id]['score'][x] + "\t" +
                 pthr_matches[query_id]['evalue'][x] + "\t" +
                 pthr_matches[query_id]['domscore'][x] + "\t" +
@@ -225,10 +226,10 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
     return results_pthr
 
 
-def _commonancestor(pathr, mapANs, datadir):
+def _commonancestor(pathr, map_ans, datadir):
     newick_in = os.path.join(datadir, "Tree_MSF", "{}.newick".format(pathr))
     newtree = Phylo.read(newick_in, "newick")
-    commonancestor = newtree.common_ancestor(mapANs)
+    commonancestor = newtree.common_ancestor(map_ans)
     return str(commonancestor) if commonancestor else "root"
 
 
