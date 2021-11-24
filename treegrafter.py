@@ -470,6 +470,8 @@ protein sequences, using annotated phylogenetic trees.
     parser.add_argument("-T", dest="tempdir", metavar="DIR",
                         help="create temporary files in DIR",
                         default=tempfile.gettempdir())
+    parser.add_argument("--keep", action="store_true",
+                        help="keep temporary directory")
     args = parser.parse_args()
 
     if not os.path.isfile(args.fasta):
@@ -514,7 +516,8 @@ protein sequences, using annotated phylogenetic trees.
         if fh is not sys.stdout:
             fh.close()
 
-        shutil.rmtree(tempdir)
+        if not args.keep:
+            shutil.rmtree(tempdir)
 
 
 if __name__ == '__main__':
