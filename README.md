@@ -35,7 +35,8 @@ The options are:
 | -o       | output file (instead of the standard output)     |
 | --epa-ng | path to the EPA-ng binary (if not in PATH)       |
 | -t       | number of threads for EPA-ng to use (default: 1) |
-| -T       | temporary directory                              |
+| -T       | path where a temporary directory is created      |
+| --keep   | keep temporary directory (default: disabled)     |
 
 The columns of the output TSV are:
 
@@ -56,7 +57,6 @@ The columns of the output TSV are:
 | 13  | integer | Start of the envelope of the domain's location (on the target sequence) |
 | 14  | integer | End of the envelope of the domain's location (on the target sequence) |
 | 15  | string  | PAINT annotations |
-| 16  | string  | PAINT ID |
 
 
 ### References
