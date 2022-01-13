@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import argparse
+import json
 import os
 import re
-import shutil
 
 
 def main():
@@ -16,27 +16,37 @@ Pre-process TreeGrafter data files.
 
     paintdir = os.path.join(datadir, "PAINT_Annotations")
     paintfile = os.path.join(paintdir, "PAINT_Annotatations_TOTAL.txt")
-    dirs = set()
+
+    families = {}
     with open(paintfile, "rt") as fh:
         for line in fh:
             cols = line.split('\t')
             fam_id, an = cols[0].split(':')
 
-            famdir = os.path.join(paintdir, fam_id)
-            if fam_id not in dirs:
-                try:
-                    shutil.rmtree(famdir)
-                except FileNotFoundError:
-                    pass
-                finally:
-                    os.makedirs(famdir)
-                    dirs.add(fam_id)
+            try:
+                fam = families[fam_id]
+            except KeyError:
+                fam = families[fam_id] = {}
 
-            with open(os.path.join(famdir, an), "wt") as fh2:
-                # fh2.write("{}\n".format(cols[1].strip()))
-                fh2.write("{}\t{}\n".format(cols[1].strip(), cols[2].strip()))
+            # May contain: subfamily ID, GO terms, PANTHER Protein class
+            # separated by spaces
+            annotation = cols[1].strip()
+
+            match = re.match(r"PTHR\d+:(SF\d+)", annotation)
+            if match:
+                subfam_id = match.group(1)
+                annotation = annotation[match.end(1):].strip()
+            else:
+                subfam_id = ""
+
+            # sub -> replace multiple spaces
+            fam[an] = (subfam_id, re.sub(r"\s+", " ", annotation))
 
     os.unlink(paintfile)
+
+    for fam_id, obj in families.items():
+        with open(os.path.join(paintdir, fam_id + ".json"), "wt") as fh:
+            json.dump(obj, fh)
 
     msfdir = os.path.join(datadir, "Tree_MSF")
     for name in os.listdir(msfdir):

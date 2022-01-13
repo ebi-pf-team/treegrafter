@@ -197,13 +197,7 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
                                   common_an)
 
         with open(annot_file, 'rt') as annot_in:
-            annot = annot_in.read().rstrip()
-
-        pthrsf_match = re.match('.*?PTHR\d+:(SF\d+)', annot)
-
-        pthrsf = ''
-        if pthrsf_match:
-            pthrsf = pthrsf_match.group(1)
+            pthrsf, annotation = json.load(annot_in)[str(common_an)]
 
         for x in range(0, len(pthr_matches[query_id]['hmmstart'])):
             results_pthr.append(
@@ -221,7 +215,7 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
                 pthr_matches[query_id]['alito'][x] + "\t" +
                 pthr_matches[query_id]['envfrom'][x] + "\t" +
                 pthr_matches[query_id]['envto'][x] + "\t" +
-                annot + "\n")
+                (annotation or "-") + "\n")
 
     return results_pthr
 
@@ -504,7 +498,7 @@ protein sequences, using annotated phylogenetic trees.
 
     fh.write("query_id\tpanther_id\tpanther_sf\tnode_id\tscore\tevalue\t"
              "dom_score\tdom_evalue\thmm_start\thmm_end\tali_start\t"
-             "ali_end\tenv_start\tenv_end\tannotations\tptn_id\n")
+             "ali_end\tenv_start\tenv_end\tannotations\n")
 
     try:
         results = process_matches_epang(matches, args.datadir, tempdir,
