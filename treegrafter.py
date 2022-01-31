@@ -193,8 +193,7 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
                 child_ids.append(an_label[leaf.name])
 
         common_an = _commonancestor(pthr, child_ids, datadir)
-        annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr,
-                                  common_an)
+        annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr + '.json')
 
         with open(annot_file, 'rt') as annot_in:
             pthrsf, annotation = json.load(annot_in)[str(common_an)]
