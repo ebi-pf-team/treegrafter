@@ -37,10 +37,11 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1):
 
         result_tree = _run_epang(pthr, query_fasta_file, datadir, tempdir,
                                  binary=binary, threads=threads)
+        if not result_tree:
+            # EPA-ng error (e.g tree cannot be converted to unrooted)
+            continue
 
-        pthr_results = process_tree(pthr, result_tree, matches[pthr], datadir)
-
-        results += pthr_results
+        results += process_tree(pthr, result_tree, matches[pthr], datadir)
 
     return results
 
@@ -146,12 +147,12 @@ def _run_epang(pthr, query_fasta, datadir, tempdir, binary=None, threads=1):
             "-w", outdir]
 
     exit_code = sp.call(args, stderr=sp.DEVNULL, stdout=sp.DEVNULL)
-    if exit_code != 0:
-        sys.stderr.write("error while running EPA-ng: "
-                         "{}\n.".format(' '.join(args)))
-        sys.exit(1)
+    jplace_file = os.path.join(outdir, "epa_result.jplace")
 
-    return os.path.join(outdir, "epa_result.jplace")
+    if exit_code == 0 and os.path.isfile(jplace_file):
+        return jplace_file
+
+    return None
 
 
 def process_tree(pthr, result_tree, pthr_matches, datadir):
