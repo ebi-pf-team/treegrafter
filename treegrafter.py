@@ -45,8 +45,8 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1):
                 "-" + "\t" +
                 matches[pthr][query_id]['score'][0] + "\t" +
                 matches[pthr][query_id]['evalue'][0] + "\t" +
-                "-" + "\t" +
-                "-" + "\t" +
+                matches[pthr][query_id]['domscore'][0] + "\t" +
+                matches[pthr][query_id]['domevalue'][0] + "\t" +
                 matches[pthr][query_id]['hmmstart'][0] + "\t" +
                 matches[pthr][query_id]['hmmend'][0] + "\t" +
                 matches[pthr][query_id]['alifrom'][0] + "\t" +
