@@ -35,6 +35,26 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1):
             # No sequence to graft
             continue
 
+        # print out the pthr Family matches
+        for query_id in matches[pthr]:
+
+            results.append(
+                query_id + "\t" +
+                pthr + "\t" +
+                "-" + "\t" +
+                "-" + "\t" +
+                matches[pthr][query_id]['score'][0] + "\t" +
+                matches[pthr][query_id]['evalue'][0] + "\t" +
+                "-" + "\t" +
+                "-" + "\t" +
+                "-" + "\t" +
+                "-" + "\t" +
+                "-" + "\t" +
+                "-" + "\t" +
+                "-" + "\t" +
+                "-" + "\t" +
+                "-" + "\n")
+
         result_tree = _run_epang(pthr, query_fasta_file, datadir, tempdir,
                                  binary=binary, threads=threads)
         if not result_tree:
