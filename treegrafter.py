@@ -47,12 +47,12 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1):
                 matches[pthr][query_id]['evalue'][0] + "\t" +
                 "-" + "\t" +
                 "-" + "\t" +
-                "-" + "\t" +
-                "-" + "\t" +
-                "-" + "\t" +
-                "-" + "\t" +
-                "-" + "\t" +
-                "-" + "\t" +
+                matches[pthr][query_id]['hmmstart'][0] + "\t" +
+                matches[pthr][query_id]['hmmend'][0] + "\t" +
+                matches[pthr][query_id]['alifrom'][0] + "\t" +
+                matches[pthr][query_id]['alito'][0] + "\t" +
+                matches[pthr][query_id]['envfrom'][0] + "\t" +
+                matches[pthr][query_id]['envto'][0] + "\t" +
                 "-" + "\n")
 
         result_tree = _run_epang(pthr, query_fasta_file, datadir, tempdir,
@@ -219,23 +219,22 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
         with open(annot_file, 'rt') as annot_in:
             pthrsf, annotation = json.load(annot_in)[str(common_an)]
 
-        for x in range(0, len(pthr_matches[query_id]['hmmstart'])):
-            results_pthr.append(
-                query_id + "\t" +
-                pthr + "\t" +
-                pthrsf + "\t" +
-                str(common_an) + "\t" +
-                pthr_matches[query_id]['score'][x] + "\t" +
-                pthr_matches[query_id]['evalue'][x] + "\t" +
-                pthr_matches[query_id]['domscore'][x] + "\t" +
-                pthr_matches[query_id]['domevalue'][x] + "\t" +
-                pthr_matches[query_id]['hmmstart'][x] + "\t" +
-                pthr_matches[query_id]['hmmend'][x] + "\t" +
-                pthr_matches[query_id]['alifrom'][x] + "\t" +
-                pthr_matches[query_id]['alito'][x] + "\t" +
-                pthr_matches[query_id]['envfrom'][x] + "\t" +
-                pthr_matches[query_id]['envto'][x] + "\t" +
-                (annotation or "-") + "\n")
+        results_pthr.append(
+            query_id + "\t" +
+            pthr + "\t" +
+            pthrsf + "\t" +
+            str(common_an) + "\t" +
+            pthr_matches[query_id]['score'][0] + "\t" +
+            pthr_matches[query_id]['evalue'][0] + "\t" +
+            pthr_matches[query_id]['domscore'][0] + "\t" +
+            pthr_matches[query_id]['domevalue'][0] + "\t" +
+            pthr_matches[query_id]['hmmstart'][0] + "\t" +
+            pthr_matches[query_id]['hmmend'][0] + "\t" +
+            pthr_matches[query_id]['alifrom'][0] + "\t" +
+            pthr_matches[query_id]['alito'][0] + "\t" +
+            pthr_matches[query_id]['envfrom'][0] + "\t" +
+            pthr_matches[query_id]['envto'][0] + "\t" +
+            (annotation or "-") + "\n")
 
     return results_pthr
 
