@@ -58,7 +58,7 @@ Pre-process TreeGrafter data files.
                     if line[0] == ">":
                         fh2.write(line)
                     else:
-                        # Replace Selenocysteine (U) and Pyrrolysine (P) AA
+                        # Replace Selenocysteine (U) and Pyrrolysine (O) AA
                         # by the undetermined AA character (X).
                         fh2.write(re.sub(r"[UO]", r"X", line.upper()))
 
