@@ -461,66 +461,31 @@ def align_length(pthr, datadir):
 def prepare(args):
     datadir = args.datadir
 
-    namesfile = os.path.join(datadir, "names.tab")
-    id2names = {}
-    with open(namesfile, "rt") as fh:
-        for line in fh:
-            values = line.rstrip().split("\t", maxsplit=1)
-
-            identifier = values[0].strip().replace(".mod", "")
-            if ".mag" in identifier:
-                # Family
-                identifier = identifier.replace(".mag", "")
-            else:
-                # Subfamily
-                identifier = identifier.replace(".", ":")
-
-            name = values[1].strip() if len(values) == 2 else None
-            id2names[identifier] = name
-
     sys.stderr.write("Loading PAINT annotations\n")
     paintdir = os.path.join(datadir, "PAINT_Annotations")
     paintfile = os.path.join(paintdir, "PAINT_Annotatations_TOTAL.txt")
     annotationsfile = os.path.join(paintdir, "annotations.tab")
     written = set()
     with open(paintfile, "rt") as fh1, open(annotationsfile, "wt") as fh2:
-        for fam_id, name in id2names.items():
-            fh2.write("\t".join([
-                fam_id,
-                "-",
-                name or "-",
-                "-",
-                "-",
-                "-"
-            ]) + "\n")
-
         for i, line in enumerate(fh1):
             fam_an_id, annotations, graft_point = line.rstrip().split("\t")
 
             if fam_an_id in written:
                 continue
 
-            fam_id, an_id = fam_an_id.split(":")  # PTHR10000:AN8
             go_terms = []
             protein_class = subfam_id = None
             for annotation in re.split(r"\s+|;", annotations):
                 if re.fullmatch(r"PTHR\d+:(SF\d+)", annotation):
-                    subfam_id = annotation.split(":")[1]
+                    subfam_id = annotation
                 elif re.fullmatch(r"GO:\d{7}", annotation):
                     go_terms.append(annotation)
                 elif re.fullmatch(r"PC\d{5}", annotation):
                     protein_class = annotation
 
-            if subfam_id:
-                subfam_id = "{}:{}".format(fam_id, subfam_id)
-                name = id2names[subfam_id]
-            else:
-                name = id2names[fam_id]
-
             fh2.write("\t".join([
                 fam_an_id,
                 subfam_id or "-",
-                name or "-",
                 ",".join(go_terms) or "-",
                 protein_class or "-",
                 graft_point or "-"
