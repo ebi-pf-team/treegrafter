@@ -549,7 +549,7 @@ def run(args):
 
     fh.write("query_id\tpanther_id\tscore\tevalue\tdom_score\tdom_evalue\t"
              "hmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\t"
-             "node_id\tpanther_sf\n")
+             "node_id\n")
 
     try:
         results = process_matches_epang(matches, args.datadir, tempdir,
