@@ -214,9 +214,14 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
                 child_ids.append(an_label[leaf.name])
 
         common_an = _commonancestor(pthr, child_ids, datadir)
+
+        annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr + '.json')
+        with open(annot_file, 'rt') as fh:
+            pthrsf, _, _, _ = json.load(fh)[common_an]
+
         results_pthr.append(
             query_id + "\t"
-            + pthr + "\t"
+            + (pthrsf or pthr) + "\t"
             + pthr_matches[query_id]['score'][0] + "\t"
             + pthr_matches[query_id]['evalue'][0] + "\t"
             + pthr_matches[query_id]['domscore'][0] + "\t"
@@ -464,14 +469,17 @@ def prepare(args):
     sys.stderr.write("Loading PAINT annotations\n")
     paintdir = os.path.join(datadir, "PAINT_Annotations")
     paintfile = os.path.join(paintdir, "PAINT_Annotatations_TOTAL.txt")
-    annotationsfile = os.path.join(paintdir, "annotations.tab")
-    written = set()
-    with open(paintfile, "rt") as fh1, open(annotationsfile, "wt") as fh2:
-        for i, line in enumerate(fh1):
-            fam_an_id, annotations, graft_point = line.rstrip().split("\t")
 
-            if fam_an_id in written:
-                continue
+    families = {}
+    with open(paintfile, "rt") as fh:
+        for i, line in enumerate(fh):
+            fam_an_id, annotations, graft_point = line.rstrip().split("\t")
+            fam_id, node_id = fam_an_id.split(':')
+
+            try:
+                fam = families[fam_id]
+            except KeyError:
+                fam = families[fam_id] = {}
 
             go_terms = []
             protein_class = subfam_id = None
@@ -483,16 +491,14 @@ def prepare(args):
                 elif re.fullmatch(r"PC\d{5}", annotation):
                     protein_class = annotation
 
-            fh2.write("\t".join([
-                fam_an_id,
-                subfam_id or "-",
-                ",".join(go_terms) or "-",
-                protein_class or "-",
-                graft_point or "-"
-            ]) + "\n")
+            fam[node_id] = (subfam_id, go_terms, protein_class, graft_point)
 
             if (i + 1) % 100000 == 0:
                 sys.stderr.write("\t{:,} lines processed\n".format(i+1))
+
+    for fam_id, obj in families.items():
+        with open(os.path.join(paintdir, fam_id + ".json"), "wt") as fh:
+            json.dump(obj, fh)
 
     sys.stderr.write("Updating sequences\n")
     msfdir = os.path.join(datadir, "Tree_MSF")
