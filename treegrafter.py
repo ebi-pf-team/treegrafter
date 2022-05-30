@@ -600,6 +600,12 @@ protein sequences, using annotated phylogenetic trees.
     parser_run.set_defaults(func=run)
 
     args = parser.parse_args()
+    try:
+        func = args.func
+    except AttributeError:
+        parser.error("too few arguments")
+    else:
+        func(args)
 
 
 if __name__ == '__main__':
