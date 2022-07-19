@@ -6,12 +6,12 @@ Unlike the [original implementation](https://github.com/pantherdb/TreeGrafter), 
 
 ## Getting started
 
-Download the PANTHER data, and pre-process them:
+Download the PANTHER data, and prepare them:
 
 ```bash
 wget http://data.pantherdb.org/ftp/downloads/TreeGrafter/PANTHER16.0_data.tar.gz
 tar -zxvf PANTHER16.0_data.tar.gz
-python treegrafter/preprocess.py /hps/nobackup/production/interpro/mblum/panther/PANTHER16.0_data/
+python treegrafter/preprocess.py prepare PANTHER16.0_data
 ```
 
 Run hmmsearch (3) on your input sequences:
@@ -21,10 +21,13 @@ hmmpress PANTHER16.0_data/famhmm/binHmm
 hmmsearch PANTHER16.0_data/famhmm/binHmm query.fasta > hits.out
 ```
 
-Then, run TreeGrafter. TreeGrafter takes three arguments as input (the query sequence file, the hmmsearch output file, and the directory of PANTHER data) and produces a TSV file.
+Then, run TreeGrafter. TreeGrafter takes at least three arguments as input:
+1. the query sequence file
+2. the hmmsearch output file
+3. the directory of the (prepared) PANTHER data
   
 ```
-python treegrafter/treegrafter.py query.fasta hits.out PANTHER16.0_data > predictions.out
+python treegrafter/treegrafter.py run query.fasta hits.out PANTHER16.0_data > predictions.tsv
 ```
 
 The options are:
@@ -43,21 +46,18 @@ The columns of the output TSV are:
 | Col | Type    | Description                                      |
 | --- | ------- | ------------------------------------------------ |
 | 1   | string  | Query ID |
-| 2   | string  | Best matched PANTHER family |
-| 3   | string  | Predicted PANTHER subfamily |
-| 4   | string  | Node of the reference tree where the sequence was grafted onto |
-| 5   | float   | Sequence bit score |
-| 6   | float   | Sequence E-Value |
-| 7   | float   | Domain bit score |
-| 8   | float   | Domain E-Value |
-| 9   | integer | Start of local alignment (respect to the query profile) |
-| 10  | integer | End of local alignment start (respect to the query profile)  |
-| 11  | integer | Start of local alignment (respect to the target sequence) |
-| 12  | integer | End of local alignment start (respect to the target sequence)  |
-| 13  | integer | Start of the envelope of the domain's location (on the target sequence) |
-| 14  | integer | End of the envelope of the domain's location (on the target sequence) |
-| 15  | string  | PAINT annotations |
-
+| 2   | string  | Predicted PANTHER subfamily (if any) or best matched PANTHER family |
+| 3   | float   | Sequence bit score |
+| 4   | float   | Sequence E-Value |
+| 5   | float   | Domain bit score |
+| 6   | float   | Domain E-Value |
+| 7   | integer | Start of local alignment (respect to the query profile) |
+| 8   | integer | End of local alignment start (respect to the query profile)  |
+| 9   | integer | Start of local alignment (respect to the target sequence) |
+| 10  | integer | End of local alignment start (respect to the target sequence)  |
+| 11  | integer | Start of the envelope of the domain's location (on the target sequence) |
+| 12  | integer | End of the envelope of the domain's location (on the target sequence) |
+| 13  | string  | Node of the reference tree where the sequence was grafted onto |
 
 ### References
 
