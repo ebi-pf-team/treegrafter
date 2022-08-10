@@ -11,7 +11,7 @@ Download the PANTHER data, and prepare them:
 ```bash
 wget http://data.pantherdb.org/ftp/downloads/TreeGrafter/PANTHER16.0_data.tar.gz
 tar -zxvf PANTHER16.0_data.tar.gz
-python treegrafter/preprocess.py prepare PANTHER16.0_data
+python treegrafter/treegrafter.py prepare PANTHER16.0_data
 ```
 
 Run hmmsearch (3) on your input sequences:
