@@ -144,7 +144,7 @@ def _querymsf(match_data, pthr_align_length):
         # then something is wrong
         sys.stderr.write("Error: length of query MSF longer than expected "
                          "PANTHER alignment length: expected {}, "
-                         "got {}.".format(pthr_align_length, len(querymsf)))
+                         "got {}.\n".format(pthr_align_length, len(querymsf)))
         sys.exit(1)
 
     return querymsf.upper()
