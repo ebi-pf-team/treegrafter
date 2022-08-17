@@ -35,7 +35,9 @@ Run TreeGrafter. TreeGrafter takes at least three arguments as input:
 $ python treegrafter/treegrafter.py run query.fasta hits.out PANTHER17.0_data > predictions.tsv
 ```
 
-Options are:
+### Options
+
+When running `treegrafter.py run`, options are:
 
 | Option   | Description                                      |
 | -------- | ------------------------------------------------ |
@@ -45,6 +47,8 @@ Options are:
 | -t       | number of threads for EPA-ng to use (default: 1) |
 | -T       | path where a temporary directory is created      |
 | --keep   | keep temporary directory (default: disabled)     |
+
+### Output format
 
 The columns of the output TSV are:
 
