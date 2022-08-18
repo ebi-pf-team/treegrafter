@@ -2,35 +2,42 @@
 
 This repository contains the code for InterPro's implementation of TreeGrafter (1).
 
-Unlike the [original implementation](https://github.com/pantherdb/TreeGrafter), we use [EPA-ng](https://github.com/Pbdas/epa-ng) (2) instead of [RAxML](https://github.com/stamatak/standard-RAxML) to graft the sequence to the annotated family tree.
+Unlike the [original implementation](https://github.com/pantherdb/TreeGrafter), we use [EPA-ng](https://github.com/Pbdas/epa-ng) (2) instead of [RAxML](https://github.com/stamatak/standard-RAxML) (3) to graft the sequence to the annotated family tree.
 
 ## Getting started
 
-Download the PANTHER data, and prepare them:
+Download and extract PANTHER data:
 
 ```bash
-wget http://data.pantherdb.org/ftp/downloads/TreeGrafter/PANTHER16.0_data.tar.gz
-tar -zxvf PANTHER16.0_data.tar.gz
-python treegrafter/treegrafter.py prepare PANTHER16.0_data
+$ wget http://data.pantherdb.org/ftp/downloads/TreeGrafter/PANTHER17.0_data.tar.gz
+$ tar -zxvf PANTHER17.0_data.tar.gz
 ```
 
-Run hmmsearch (3) on your input sequences:
+Prepare PANTHER annotations. This is only required once:
+
+```bash
+$ python treegrafter/treegrafter.py prepare PANTHER17.0_data
+```
+
+Run hmmsearch (4) on your input sequences:
 
 ```
-hmmpress PANTHER16.0_data/famhmm/binHmm
-hmmsearch PANTHER16.0_data/famhmm/binHmm query.fasta > hits.out
+$ hmmsearch PANTHER17.0_data/famhmm/binHmm query.fasta > hits.out
 ```
 
-Then, run TreeGrafter. TreeGrafter takes at least three arguments as input:
+Run TreeGrafter. TreeGrafter takes at least three arguments as input:
+
 1. the query sequence file
 2. the hmmsearch output file
-3. the directory of the (prepared) PANTHER data
+3. the directory of prepared PANTHER data
   
 ```
-python treegrafter/treegrafter.py run query.fasta hits.out PANTHER16.0_data > predictions.tsv
+$ python treegrafter/treegrafter.py run query.fasta hits.out PANTHER17.0_data > predictions.tsv
 ```
 
-The options are:
+### Options
+
+When running `treegrafter.py run`, options are:
 
 | Option   | Description                                      |
 | -------- | ------------------------------------------------ |
@@ -40,6 +47,8 @@ The options are:
 | -t       | number of threads for EPA-ng to use (default: 1) |
 | -T       | path where a temporary directory is created      |
 | --keep   | keep temporary directory (default: disabled)     |
+
+### Output format
 
 The columns of the output TSV are:
 
@@ -59,8 +68,25 @@ The columns of the output TSV are:
 | 12  | integer | End of the envelope of the domain's location (on the target sequence) |
 | 13  | string  | Node of the reference tree where the sequence was grafted onto |
 
-### References
+## Docker
 
-1. Haiming Tang, Robert D Finn, Paul D Thomas, TreeGrafter: phylogenetic tree-based annotation of proteins with Gene Ontology terms and other annotations, _Bioinformatics_, Volume 35, Issue 3, 01 February 2019, Pages 518–520, https://doi.org/10.1093/bioinformatics/bty625
+TreeGrafter is available as a Docker image. PANTHER data need to be provided to the container with bind mounts. Assuming the `PANTHER17.0_data` directory is in your current working directory, you can use `-v $(pwd):/mnt` so the PANTHER data will be mounted in `/mnt/PANTHER17.0_data` in the container.
+
+To prepare PANTHER data:
+
+```bash
+$ docker run --rm -v "$(pwd)":/mnt interpro/treegrafter prepare /mnt/PANTHER17.0_data
+```
+
+To search your sequences:
+
+```bash
+$ docker run --rm -v "$(pwd)":/mnt interpro/treegrafter search /mnt/query.fasta /mnt/PANTHER17.0_data /mnt/predictions.tsv
+```
+
+## References
+
+1. Haiming Tang, Robert D Finn, Paul D Thomas, TreeGrafter: phylogenetic tree-based annotation of proteins with Gene Ontology terms and other annotations, _Bioinformatics_, Volume 35, Issue 3, February 2019, Pages 518–520, https://doi.org/10.1093/bioinformatics/bty625
 2. Pierre Barbera, Alexey M Kozlov, Lucas Czech, Benoit Morel, Diego Darriba, Tomáš Flouri, Alexandros Stamatakis, EPA-ng: Massively Parallel Evolutionary Placement of Genetic Sequences, _Systematic Biology_, Volume 68, Issue 2, March 2019, Pages 365–369, https://doi.org/10.1093/sysbio/syy054
-3. http://hmmer.org/
+3. Alexandros Stamatakis, RAxML version 8: a tool for phylogenetic analysis and post-analysis of large phylogenies, _Bioinformatics_, Volume 30, Issue 9, May 2014, Pages 1312–1313, https://doi.org/10.1093/bioinformatics/btu033
+4. http://hmmer.org/
