@@ -152,7 +152,7 @@ def _querymsf(match_data, pthr_align_length):
 
 def _run_epang(pthr, query_fasta, datadir, tempdir, binary=None, threads=1):
     msfdir = os.path.join(datadir, "Tree_MSF")
-    referece_fasta = os.path.join(msfdir, "{}.AN.fasta".format(pthr))
+    reference_fasta = os.path.join(msfdir, "{}.AN.fasta".format(pthr))
     bifurnewick_in = os.path.join(msfdir, "{}.bifurcate.newick".format(pthr))
     outdir = os.path.join(tempdir, "{}_epang".format(pthr))
     os.mkdir(outdir)
@@ -162,7 +162,7 @@ def _run_epang(pthr, query_fasta, datadir, tempdir, binary=None, threads=1):
             "-m", "WAG",
             "-T", str(threads),
             "-t", bifurnewick_in,
-            "-s", referece_fasta,
+            "-s", reference_fasta,
             "-q", query_fasta,
             "-w", outdir]
 
