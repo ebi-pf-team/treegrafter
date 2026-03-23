@@ -6,33 +6,40 @@ Unlike the [original implementation](https://github.com/pantherdb/TreeGrafter), 
 
 ## Getting started
 
-Download and extract PANTHER data:
+TreeGrafter uses two separate data directories:
+
+- **Library directory** — the PANTHER library (trees, alignments, HMMs). Updated yearly.
+- **Annotation directory** — per-family JSON files derived from PAINT annotations. Updated monthly. (More info [here](https://github.com/pantherdb/fullgo_paint_update/issues/77))
+
+### 1. Download PANTHER library
 
 ```bash
-$ wget http://data.pantherdb.org/ftp/downloads/TreeGrafter/PANTHER17.0_data.tar.gz
-$ tar -zxvf PANTHER17.0_data.tar.gz
+$ wget http://data.pantherdb.org/ftp/downloads/TreeGrafter/PANTHER19.0_data.tar.gz
+$ tar -zxvf PANTHER19.0_data.tar.gz
+$ wget https://data.pantherdb.org/ftp/downloads/paint/19.0/2026-01-05/PAINT_TreeGrafter_Annotations_TOTAL.txt.gz
+$ gunzip PAINT_TreeGrafter_Annotations_TOTAL.txt.gz
 ```
 
-Prepare PANTHER annotations. This is only required once:
+### 2. Prepare annotations
+
+Convert the PAINT annotation file into per-family JSONs. This is only required once per annotation release:
 
 ```bash
-$ python treegrafter/treegrafter.py prepare PANTHER17.0_data
+$ python treegrafter.py prepare PAINT_TreeGrafter_Annotations_TOTAL.txt annotations/
 ```
+
+### 3. Run hmmsearch
 
 Run hmmsearch (4) on your input sequences:
 
 ```
-$ hmmsearch PANTHER17.0_data/famhmm/binHmm query.fasta > hits.out
+$ hmmsearch PANTHER19.0_data/famhmm/binHmm query.fasta > hits.out
 ```
 
-Run TreeGrafter. TreeGrafter takes at least three arguments as input:
+### 4. Run TreeGrafter
 
-1. the query sequence file
-2. the hmmsearch output file
-3. the directory of prepared PANTHER data
-  
 ```
-$ python treegrafter/treegrafter.py run query.fasta hits.out PANTHER17.0_data > predictions.tsv
+$ python treegrafter.py run query.fasta hits.out -d PANTHER19.0_data -a annotations/ > predictions.tsv
 ```
 
 ### Options
@@ -41,6 +48,8 @@ When running `treegrafter.py run`, options are:
 
 | Option   | Description                                      |
 | -------- | ------------------------------------------------ |
+| -d       | **required** — PANTHER library directory         |
+| -a       | **required** — annotation directory (from `prepare`) |
 | -e       | e-value cutoff (default: disabled)               |
 | -o       | output file (instead of the standard output)     |
 | --epa-ng | path to the EPA-ng binary (if not in PATH)       |
@@ -70,18 +79,18 @@ The columns of the output TSV are:
 
 ## Docker
 
-TreeGrafter is available as a Docker image. PANTHER data need to be provided to the container with bind mounts. Assuming the `PANTHER17.0_data` directory is in your current working directory, you can use `-v $(pwd):/mnt` so the PANTHER data will be mounted in `/mnt/PANTHER17.0_data` in the container.
+TreeGrafter is available as a Docker image. PANTHER data and annotations need to be provided to the container with bind mounts. Assuming both directories are under your current working directory, use `-v $(pwd):/mnt`.
 
-To prepare PANTHER data:
+To prepare annotations:
 
 ```bash
-$ docker run --rm -v "$(pwd)":/mnt interpro/treegrafter prepare /mnt/PANTHER17.0_data
+$ docker run --rm -v "$(pwd)":/mnt interpro/treegrafter prepare /mnt/PAINT_Annotations_TOTAL.txt /mnt/annotations
 ```
 
 To search your sequences:
 
 ```bash
-$ docker run --rm -v "$(pwd)":/mnt interpro/treegrafter search /mnt/query.fasta /mnt/PANTHER17.0_data /mnt/predictions.tsv
+$ docker run --rm -v "$(pwd)":/mnt interpro/treegrafter search /mnt/query.fasta /mnt/PANTHER19.0_data /mnt/annotations /mnt/predictions.tsv
 ```
 
 ## References

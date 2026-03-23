@@ -25,12 +25,12 @@ class ReMatcher:
         return self.rematch.group(i)
 
 
-def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1, print_go=False, annot_dir=None):
+def process_matches_epang(matches, libdir, annot_dir, tempdir, binary=None, threads=1, print_go=False):
     results = {}
 
     for pthr in matches:
         query_fasta_file = generate_fasta_for_panthr(pthr, matches[pthr],
-                                                     datadir, tempdir)
+                                                     libdir, tempdir)
         if not query_fasta_file:
             # No sequence to graft
             continue
@@ -56,22 +56,22 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1, pri
                 row.extend(['-', '-'])
             results[query_id] = row
 
-        result_tree = _run_epang(pthr, query_fasta_file, datadir, tempdir,
+        result_tree = _run_epang(pthr, query_fasta_file, libdir, tempdir,
                                  binary=binary, threads=threads)
         if not result_tree:
             # EPA-ng error (e.g tree cannot be converted to unrooted)
             continue
 
-        for result in process_tree(pthr, result_tree, matches[pthr], datadir, print_go=print_go, annot_dir=annot_dir):
+        for result in process_tree(pthr, result_tree, matches[pthr], libdir, annot_dir, print_go=print_go):
             query_id = result[0]
             results[query_id] = result
 
     return list(results.values())
 
 
-def generate_fasta_for_panthr(pthr, matches, datadir, tempdir):
+def generate_fasta_for_panthr(pthr, matches, libdir, tempdir):
 
-    pthr_align_length = align_length(pthr, datadir)
+    pthr_align_length = align_length(pthr, libdir)
 
     query_fasta = ''
 
@@ -150,8 +150,8 @@ def _querymsf(match_data, pthr_align_length):
     return ''.join(querymsf).upper()
 
 
-def _run_epang(pthr, query_fasta, datadir, tempdir, binary=None, threads=1):
-    msfdir = os.path.join(datadir, "Tree_MSF")
+def _run_epang(pthr, query_fasta, libdir, tempdir, binary=None, threads=1):
+    msfdir = os.path.join(libdir, "Tree_MSF")
     reference_fasta = os.path.join(msfdir, "{}.AN.fasta".format(pthr))
     bifurnewick_in = os.path.join(msfdir, "{}.bifurcate.newick".format(pthr))
     outdir = os.path.join(tempdir, "{}_epang".format(pthr))
@@ -175,7 +175,7 @@ def _run_epang(pthr, query_fasta, datadir, tempdir, binary=None, threads=1):
     return None
 
 
-def process_tree(pthr, result_tree, pthr_matches, datadir, print_go=False, annot_dir=None):
+def process_tree(pthr, result_tree, pthr_matches, libdir, annot_dir, print_go=False):
     with open(result_tree, "rt") as classification:
         classification_json = json.load(classification)
 
@@ -211,10 +211,9 @@ def process_tree(pthr, result_tree, pthr_matches, datadir, print_go=False, annot
             for leaf in comonancestor.get_terminals():
                 child_ids.append(an_label[leaf.name])
 
-        common_an = _commonancestor(pthr, child_ids, datadir)
+        common_an = _commonancestor(pthr, child_ids, libdir)
 
-        effective_annot_dir = annot_dir or os.path.join(datadir, 'PAINT_Annotations')
-        annot_file = os.path.join(effective_annot_dir, pthr + '.json')
+        annot_file = os.path.join(annot_dir, pthr + '.json')
         with open(annot_file, 'rt') as fh:
             pthrsf, go_terms, protein_class, _ = json.load(fh)[common_an]
 
@@ -241,8 +240,8 @@ def process_tree(pthr, result_tree, pthr_matches, datadir, print_go=False, annot
     return results_pthr
 
 
-def _commonancestor(pathr, map_ans, datadir):
-    newick_in = os.path.join(datadir, "Tree_MSF", "{}.newick".format(pathr))
+def _commonancestor(pathr, map_ans, libdir):
+    newick_in = os.path.join(libdir, "Tree_MSF", "{}.newick".format(pathr))
     newtree = Phylo.read(newick_in, "newick")
     commonancestor = newtree.common_ancestor(map_ans)
     return str(commonancestor) if commonancestor else "root"
@@ -484,8 +483,8 @@ def filter_evalue_cutoff(matches, cutoff):
     return matches
 
 
-def align_length(pthr, datadir):
-    pthr_fasta_file = os.path.join(datadir,
+def align_length(pthr, libdir):
+    pthr_fasta_file = os.path.join(libdir,
                                    "Tree_MSF",
                                    "{}.AN.fasta".format(pthr))
 
@@ -500,14 +499,17 @@ def align_length(pthr, datadir):
 
 
 def prepare(args):
-    datadir = args.datadir
+    paintfile = args.annotation_file
+    output_dir = args.output_dir
+
+    if not os.path.isfile(paintfile):
+        sys.stderr.write("Error: {}: "
+                         "no such file.\n".format(paintfile))
+        sys.exit(1)
+
+    os.makedirs(output_dir, exist_ok=True)
 
     sys.stderr.write("Loading PAINT annotations\n")
-    paintdir = os.path.join(datadir, "PAINT_Annotations")
-    if args.annotation_file:
-        paintfile = args.annotation_file
-    else:
-        paintfile = os.path.join(paintdir, "PAINT_Annotations_TOTAL.txt")
 
     families = {}
     with open(paintfile, "rt") as fh:
@@ -541,26 +543,8 @@ def prepare(args):
                 sys.stderr.write("\t{:,} lines processed\n".format(i+1))
 
     for fam_id, obj in families.items():
-        with open(os.path.join(paintdir, fam_id + ".json"), "wt") as fh:
+        with open(os.path.join(output_dir, fam_id + ".json"), "wt") as fh:
             json.dump(obj, fh)
-
-    sys.stderr.write("Updating sequences\n")
-    msfdir = os.path.join(datadir, "Tree_MSF")
-    for name in os.listdir(msfdir):
-        if name.endswith(".fasta"):
-            src = os.path.join(msfdir, name)
-            dst = src + ".tmp"
-            with open(src, "rt") as fh1, open(dst, "wt") as fh2:
-                for line in fh1:
-                    if line[0] == ">":
-                        fh2.write(line)
-                    else:
-                        # Replace Selenocysteine (U) and Pyrrolysine (O) AA
-                        # by the undetermined AA character (X).
-                        fh2.write(re.sub(r"[UO]", r"X", line.upper()))
-
-            os.unlink(src)
-            os.rename(dst, src)
 
 
 def run(args):
@@ -572,15 +556,13 @@ def run(args):
         sys.stderr.write("Error: {}: "
                          "no such file.\n".format(args.hmmsearch))
         sys.exit(1)
-    elif not os.path.isdir(args.datadir):
+    elif not os.path.isdir(args.libdir):
         sys.stderr.write("Error: {}: "
-                         "no such directory.\n".format(args.datadir))
+                         "no such directory.\n".format(args.libdir))
         sys.exit(1)
-
-    annot_dir = args.annot_dir or os.path.join(args.datadir, "PAINT_Annotations")
-    if not os.path.isdir(annot_dir):
+    elif not os.path.isdir(args.annotdir):
         sys.stderr.write("Error: {}: "
-                         "no such directory.\n".format(annot_dir))
+                         "no such directory.\n".format(args.annotdir))
         sys.exit(1)
 
     matches = parsehmmsearch(args.hmmsearch)
@@ -605,11 +587,11 @@ def run(args):
     fh.write(header + "\n")
 
     try:
-        results = process_matches_epang(matches, args.datadir, tempdir,
+        results = process_matches_epang(matches, args.libdir, args.annotdir,
+                                        tempdir,
                                         binary=args.epang,
                                         threads=args.threads,
-                                        print_go=args.print_go,
-                                        annot_dir=annot_dir)
+                                        print_go=args.print_go)
 
         for hit in results:
             fh.write("\t".join(map(str, hit)) + "\n")
@@ -630,17 +612,24 @@ protein sequences, using annotated phylogenetic trees.
     subparsers = parser.add_subparsers()
 
     parser_pre = subparsers.add_parser("prepare")
-    parser_pre.add_argument("datadir", help="PANTHER/TreeGrafter data directory")
-    parser_pre.add_argument("-a", dest="annotation_file", metavar="FILE",
-                            help="PAINT annotation file path "
-                                 "(default: <datadir>/PAINT_Annotations/"
-                                 "PAINT_Annotations_TOTAL.txt)")
+    parser_pre.add_argument("annotation_file",
+                            help="PAINT annotation file "
+                                 "(e.g. PAINT_Annotations_TOTAL.txt)")
+    parser_pre.add_argument("output_dir",
+                            help="output directory for per-family JSON files")
     parser_pre.set_defaults(func=prepare)
 
     parser_run = subparsers.add_parser("run")
     parser_run.add_argument("fasta", help="fasta file")
     parser_run.add_argument("hmmsearch", help="hmmsearch output file")
-    parser_run.add_argument("datadir", help="TreeGrafter data directory")
+    parser_run.add_argument("-d", dest="libdir", required=True,
+                            metavar="DIR",
+                            help="PANTHER library directory "
+                                 "(containing Tree_MSF/ and famhmm/)")
+    parser_run.add_argument("-a", dest="annotdir", required=True,
+                            metavar="DIR",
+                            help="directory containing per-family annotation "
+                                 "JSON files (output of 'prepare')")
     parser_run.add_argument("-e", dest="evalue", type=float,
                             metavar="FLOAT", help="e-value cutoff")
     parser_run.add_argument("-o", dest="output", metavar="FILE",
@@ -657,10 +646,6 @@ protein sequences, using annotated phylogenetic trees.
                             help="keep temporary directory")
     parser_run.add_argument("--print-go", action="store_true",
                             help="include GO terms and protein class in output")
-    parser_run.add_argument("-a", dest="annot_dir", metavar="DIR",
-                            help="directory containing per-family annotation "
-                                 "JSON files from 'prepare' step "
-                                 "(default: <datadir>/PAINT_Annotations)")
     parser_run.set_defaults(func=run)
 
     args = parser.parse_args()
