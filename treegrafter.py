@@ -25,7 +25,7 @@ class ReMatcher:
         return self.rematch.group(i)
 
 
-def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1, print_go=False):
+def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1, print_go=False, annot_dir=None):
     results = {}
 
     for pthr in matches:
@@ -62,7 +62,7 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1, pri
             # EPA-ng error (e.g tree cannot be converted to unrooted)
             continue
 
-        for result in process_tree(pthr, result_tree, matches[pthr], datadir, print_go=print_go):
+        for result in process_tree(pthr, result_tree, matches[pthr], datadir, print_go=print_go, annot_dir=annot_dir):
             query_id = result[0]
             results[query_id] = result
 
@@ -175,7 +175,7 @@ def _run_epang(pthr, query_fasta, datadir, tempdir, binary=None, threads=1):
     return None
 
 
-def process_tree(pthr, result_tree, pthr_matches, datadir, print_go=False):
+def process_tree(pthr, result_tree, pthr_matches, datadir, print_go=False, annot_dir=None):
     with open(result_tree, "rt") as classification:
         classification_json = json.load(classification)
 
@@ -213,7 +213,8 @@ def process_tree(pthr, result_tree, pthr_matches, datadir, print_go=False):
 
         common_an = _commonancestor(pthr, child_ids, datadir)
 
-        annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr + '.json')
+        effective_annot_dir = annot_dir or os.path.join(datadir, 'PAINT_Annotations')
+        annot_file = os.path.join(effective_annot_dir, pthr + '.json')
         with open(annot_file, 'rt') as fh:
             pthrsf, go_terms, protein_class, _ = json.load(fh)[common_an]
 
@@ -503,7 +504,10 @@ def prepare(args):
 
     sys.stderr.write("Loading PAINT annotations\n")
     paintdir = os.path.join(datadir, "PAINT_Annotations")
-    paintfile = os.path.join(paintdir, "PAINT_Annotatations_TOTAL.txt")
+    if args.annotation_file:
+        paintfile = args.annotation_file
+    else:
+        paintfile = os.path.join(paintdir, "PAINT_Annotations_TOTAL.txt")
 
     families = {}
     with open(paintfile, "rt") as fh:
@@ -573,6 +577,12 @@ def run(args):
                          "no such directory.\n".format(args.datadir))
         sys.exit(1)
 
+    annot_dir = args.annot_dir or os.path.join(args.datadir, "PAINT_Annotations")
+    if not os.path.isdir(annot_dir):
+        sys.stderr.write("Error: {}: "
+                         "no such directory.\n".format(annot_dir))
+        sys.exit(1)
+
     matches = parsehmmsearch(args.hmmsearch)
     matches = filter_best_domain(matches)
 
@@ -598,7 +608,8 @@ def run(args):
         results = process_matches_epang(matches, args.datadir, tempdir,
                                         binary=args.epang,
                                         threads=args.threads,
-                                        print_go=args.print_go)
+                                        print_go=args.print_go,
+                                        annot_dir=annot_dir)
 
         for hit in results:
             fh.write("\t".join(map(str, hit)) + "\n")
@@ -620,6 +631,10 @@ protein sequences, using annotated phylogenetic trees.
 
     parser_pre = subparsers.add_parser("prepare")
     parser_pre.add_argument("datadir", help="PANTHER/TreeGrafter data directory")
+    parser_pre.add_argument("-a", dest="annotation_file", metavar="FILE",
+                            help="PAINT annotation file path "
+                                 "(default: <datadir>/PAINT_Annotations/"
+                                 "PAINT_Annotations_TOTAL.txt)")
     parser_pre.set_defaults(func=prepare)
 
     parser_run = subparsers.add_parser("run")
@@ -642,6 +657,10 @@ protein sequences, using annotated phylogenetic trees.
                             help="keep temporary directory")
     parser_run.add_argument("--print-go", action="store_true",
                             help="include GO terms and protein class in output")
+    parser_run.add_argument("-a", dest="annot_dir", metavar="DIR",
+                            help="directory containing per-family annotation "
+                                 "JSON files from 'prepare' step "
+                                 "(default: <datadir>/PAINT_Annotations)")
     parser_run.set_defaults(func=run)
 
     args = parser.parse_args()
