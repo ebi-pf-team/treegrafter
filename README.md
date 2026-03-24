@@ -6,12 +6,12 @@ Unlike the [original implementation](https://github.com/pantherdb/TreeGrafter), 
 
 ## Getting started
 
-TreeGrafter uses two separate data directories:
+TreeGrafter now uses two separate data directories:
 
 - **Library directory** — the PANTHER library (trees, alignments, HMMs). Updated yearly.
 - **Annotation directory** — per-family JSON files derived from PAINT annotations. Updated monthly. (More info [here](https://github.com/pantherdb/fullgo_paint_update/issues/77))
 
-### 1. Download PANTHER library
+### 1. Download PANTHER library and PAINT annotations
 
 ```bash
 $ wget http://data.pantherdb.org/ftp/downloads/TreeGrafter/PANTHER19.0_data.tar.gz
@@ -56,6 +56,7 @@ When running `treegrafter.py run`, options are:
 | -t       | number of threads for EPA-ng to use (default: 1) |
 | -T       | path where a temporary directory is created      |
 | --keep   | keep temporary directory (default: disabled)     |
+| --print-go | include GO terms and protein class columns in output |
 
 ### Output format
 
@@ -76,6 +77,8 @@ The columns of the output TSV are:
 | 11  | integer | Start of the envelope of the domain's location (on the target sequence) |
 | 12  | integer | End of the envelope of the domain's location (on the target sequence) |
 | 13  | string  | Node of the reference tree where the sequence was grafted onto |
+| 14  | string  | GO terms (only with `--print-go`) |
+| 15  | string  | PANTHER protein class (only with `--print-go`) |
 
 ## Docker
 
