@@ -25,19 +25,19 @@ class ReMatcher:
         return self.rematch.group(i)
 
 
-def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1):
+def process_matches_epang(matches, libdir, annot_dir, tempdir, binary=None, threads=1, print_go=False):
     results = {}
 
     for pthr in matches:
         query_fasta_file = generate_fasta_for_panthr(pthr, matches[pthr],
-                                                     datadir, tempdir)
+                                                     libdir, tempdir)
         if not query_fasta_file:
             # No sequence to graft
             continue
 
         # print out the pthr Family matches
         for query_id in matches[pthr]:
-            results[query_id] = [
+            row = [
                 query_id,
                 pthr,
                 matches[pthr][query_id]['score'][0],
@@ -52,23 +52,26 @@ def process_matches_epang(matches, datadir, tempdir, binary=None, threads=1):
                 matches[pthr][query_id]['envto'][0],
                 "-"
             ]
+            if print_go:
+                row.extend(['-', '-'])
+            results[query_id] = row
 
-        result_tree = _run_epang(pthr, query_fasta_file, datadir, tempdir,
+        result_tree = _run_epang(pthr, query_fasta_file, libdir, tempdir,
                                  binary=binary, threads=threads)
         if not result_tree:
             # EPA-ng error (e.g tree cannot be converted to unrooted)
             continue
 
-        for result in process_tree(pthr, result_tree, matches[pthr], datadir):
+        for result in process_tree(pthr, result_tree, matches[pthr], libdir, annot_dir, print_go=print_go):
             query_id = result[0]
             results[query_id] = result
 
     return list(results.values())
 
 
-def generate_fasta_for_panthr(pthr, matches, datadir, tempdir):
+def generate_fasta_for_panthr(pthr, matches, libdir, tempdir):
 
-    pthr_align_length = align_length(pthr, datadir)
+    pthr_align_length = align_length(pthr, libdir)
 
     query_fasta = ''
 
@@ -103,55 +106,52 @@ def stringify(query_id):
 
 
 def _querymsf(match_data, pthr_align_length):
-    # matchdata contains: hmmstart, hmmend, hmmalign and matchalign,
-    # as arrays (multiple modules possible)
+    # Pre-allocate output as fixed-length gap array
+    querymsf = ['-'] * pthr_align_length
 
-    # N-terminaly padd the sequence
-    # position 1 until start is filled with '-'
+    # Track which HMM positions are already claimed
+    used_positions = set()
 
-    querymsf = ((int(match_data['hmmstart'][0]) - 1) * '-')
+    # Sort domain indices by score (highest first)
+    num_domains = len(match_data['matchalign'])
+    domain_indices = list(range(num_domains))
+    domain_indices.sort(
+        key=lambda i: float(match_data['domscore'][i]), reverse=True
+    )
 
-    # loop the elements/domains
-    for i in range(0, len(match_data['matchalign'])):
+    for i in domain_indices:
+        hmmstart = int(match_data['hmmstart'][i])
+        hmmend = int(match_data['hmmend'][i])
 
-        # if this is not the first element, fill in the gap between the hits
-        if i > 0:
-            start = int(match_data['hmmstart'][i])
-            end = int(match_data['hmmend'][i-1])
-            # This bridges the query_id gap between the hits
-            querymsf += (start - end - 1) * '-'
+        # Check for overlap with already-claimed positions
+        domain_positions = set(range(hmmstart, hmmend + 1))
+        if domain_positions & used_positions:
+            sys.stderr.write(
+                "Warning: domain {} (score {}) overlaps higher-scoring "
+                "domain, skipping.\n".format(i, match_data['domscore'][i])
+            )
+            continue
 
-        # extract the query string
-        matchalign = match_data['matchalign'][i]
+        # Mark positions as used
+        used_positions |= domain_positions
+
+        # Place alignment characters at correct MSA positions
         hmmalign = match_data['hmmalign'][i]
+        matchalign = match_data['matchalign'][i]
+        msa_pos = hmmstart - 1  # convert to 0-based
 
-        # loop the sequence
-        for j in range(0, len(hmmalign)):
-            # hmm insert state
-            if hmmalign[j:j+1] == ".":
+        for j in range(len(hmmalign)):
+            if hmmalign[j] == '.':
+                # Insert state — skip, don't advance MSA position
                 continue
+            querymsf[msa_pos] = matchalign[j]
+            msa_pos += 1
 
-            querymsf += matchalign[j:j+1]
-
-    # C-terminaly padd the sequence
-    # get the end of the last element/domain
-    last_end = int(match_data['hmmend'][-1])
-    # and padd out to fill the msf length
-    querymsf += (pthr_align_length - last_end) * '-'
-
-    # error check (is this required?)
-    if len(querymsf) != pthr_align_length:
-        # then something is wrong
-        sys.stderr.write("Error: length of query MSF longer than expected "
-                         "PANTHER alignment length: expected {}, "
-                         "got {}.\n".format(pthr_align_length, len(querymsf)))
-        sys.exit(1)
-
-    return querymsf.upper()
+    return ''.join(querymsf).upper()
 
 
-def _run_epang(pthr, query_fasta, datadir, tempdir, binary=None, threads=1):
-    msfdir = os.path.join(datadir, "Tree_MSF")
+def _run_epang(pthr, query_fasta, libdir, tempdir, binary=None, threads=1):
+    msfdir = os.path.join(libdir, "Tree_MSF")
     reference_fasta = os.path.join(msfdir, "{}.AN.fasta".format(pthr))
     bifurnewick_in = os.path.join(msfdir, "{}.bifurcate.newick".format(pthr))
     outdir = os.path.join(tempdir, "{}_epang".format(pthr))
@@ -175,7 +175,7 @@ def _run_epang(pthr, query_fasta, datadir, tempdir, binary=None, threads=1):
     return None
 
 
-def process_tree(pthr, result_tree, pthr_matches, datadir):
+def process_tree(pthr, result_tree, pthr_matches, libdir, annot_dir, print_go=False):
     with open(result_tree, "rt") as classification:
         classification_json = json.load(classification)
 
@@ -211,13 +211,13 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
             for leaf in comonancestor.get_terminals():
                 child_ids.append(an_label[leaf.name])
 
-        common_an = _commonancestor(pthr, child_ids, datadir)
+        common_an = _commonancestor(pthr, child_ids, libdir)
 
-        annot_file = os.path.join(datadir, 'PAINT_Annotations', pthr + '.json')
+        annot_file = os.path.join(annot_dir, pthr + '.json')
         with open(annot_file, 'rt') as fh:
-            pthrsf, _, _, _ = json.load(fh)[common_an]
+            pthrsf, go_terms, protein_class, _ = json.load(fh)[common_an]
 
-        results_pthr.append([
+        row = [
             query_id,
             pthrsf or pthr,
             pthr_matches[query_id]['score'][0],
@@ -231,13 +231,17 @@ def process_tree(pthr, result_tree, pthr_matches, datadir):
             pthr_matches[query_id]['envfrom'][0],
             pthr_matches[query_id]['envto'][0],
             common_an
-        ])
+        ]
+        if print_go:
+            row.append(go_terms or '-')
+            row.append(protein_class or '-')
+        results_pthr.append(row)
 
     return results_pthr
 
 
-def _commonancestor(pathr, map_ans, datadir):
-    newick_in = os.path.join(datadir, "Tree_MSF", "{}.newick".format(pathr))
+def _commonancestor(pathr, map_ans, libdir):
+    newick_in = os.path.join(libdir, "Tree_MSF", "{}.newick".format(pathr))
     newtree = Phylo.read(newick_in, "newick")
     commonancestor = newtree.common_ancestor(map_ans)
     return str(commonancestor) if commonancestor else "root"
@@ -369,35 +373,68 @@ def parsehmmsearch(hmmer_out):
                 domain_num = m.group(1)
 
                 if domain_num in store_domain:
-                    line = fp.readline()
-                    hmmalign_array = line.split()
+                    hmmalign_seq = ''
+                    matchlign_seq = ''
+                    hmmalign_model = None
+                    matchalign_query = None
 
-                    hmmalign_model = hmmalign_array[0]
-                    hmmalign_model = re.sub(r'\..+', '', hmmalign_model)
-                    hmmalign_seq = hmmalign_array[2]
+                    # Read all alignment blocks for this domain.
+                    # HMMER3 outputs 4 lines per block:
+                    #   1. HMM sequence line (e.g. "PTHR00001.1  1 abcde 5")
+                    #   2. Consensus/match line
+                    #   3. Query sequence line (e.g. "query1  1 ABCDE 5")
+                    #   4. PP (posterior probability) line
+                    # Blocks are separated by a blank line.
+                    while True:
+                        # Read HMM line (line 1 of block)
+                        line = fp.readline()
+                        if not line or not line.strip():
+                            break
+                        hmmalign_array = line.split()
+                        if len(hmmalign_array) < 3:
+                            break
 
-                    line = fp.readline()
-                    line = fp.readline()
+                        # On continuation blocks, verify model name matches
+                        block_model = re.sub(r'\..+', '', hmmalign_array[0])
+                        if hmmalign_model is not None:
+                            if block_model != hmmalign_model:
+                                break  # not a continuation — stop
+                        else:
+                            hmmalign_model = block_model
+                        hmmalign_seq += hmmalign_array[2]
 
-                    matchalign_array = line.split()
+                        fp.readline()            # consensus line (line 2)
+                        line = fp.readline()      # query line (line 3)
 
-                    matchalign_query = matchalign_array[0]
-                    matchalign_query = stringify(matchalign_query)
+                        matchalign_array = line.split()
+                        if matchalign_query is None:
+                            matchalign_query = stringify(matchalign_array[0])
+                        matchlign_seq += matchalign_array[2]
 
-                    matchlign_seq = matchalign_array[2]
+                        fp.readline()            # PP line (line 4)
+                        fp.readline()            # blank separator between blocks
 
-                    if matchpthr == hmmalign_model and query_id == matchalign_query:
-                        if len(current_match['align']['hmmalign']) >= len(current_match['align']['hmmstart']):
-                            sys.stderr.write("Trying to add alignment sequence"
-                                             " without additional data.\n")
-                            sys.exit(1)
+                    # `line` now holds the first non-block line (next section
+                    # or blank). The outer while-loop will process it via
+                    # m = ReMatcher(line) at the top, so we must NOT read
+                    # another line at the bottom of the outer loop.
 
-                        current_match['align']['hmmalign'].append(hmmalign_seq)
-                        current_match['align']['matchalign'].append(matchlign_seq)
+                    if hmmalign_model and matchalign_query:
+                        if matchpthr == hmmalign_model and query_id == matchalign_query:
+                            if len(current_match['align']['hmmalign']) >= len(current_match['align']['hmmstart']):
+                                sys.stderr.write("Trying to add alignment sequence"
+                                                 " without additional data.\n")
+                                sys.exit(1)
+
+                            current_match['align']['hmmalign'].append(hmmalign_seq)
+                            current_match['align']['matchalign'].append(matchlign_seq)
 
                     match_store[query_id] = current_match
 
-                line = fp.readline()
+                    continue  # skip bottom-of-loop readline; line already set
+
+                # domain_num not in store_domain — just let the outer loop
+                # advance via its bottom-of-loop readline
 
             elif m.match(r'\A\/\/'):
                 score_store = {}
@@ -446,8 +483,8 @@ def filter_evalue_cutoff(matches, cutoff):
     return matches
 
 
-def align_length(pthr, datadir):
-    pthr_fasta_file = os.path.join(datadir,
+def align_length(pthr, libdir):
+    pthr_fasta_file = os.path.join(libdir,
                                    "Tree_MSF",
                                    "{}.AN.fasta".format(pthr))
 
@@ -462,11 +499,17 @@ def align_length(pthr, datadir):
 
 
 def prepare(args):
-    datadir = args.datadir
+    paintfile = args.annotation_file
+    output_dir = args.output_dir
+
+    if not os.path.isfile(paintfile):
+        sys.stderr.write("Error: {}: "
+                         "no such file.\n".format(paintfile))
+        sys.exit(1)
+
+    os.makedirs(output_dir, exist_ok=True)
 
     sys.stderr.write("Loading PAINT annotations\n")
-    paintdir = os.path.join(datadir, "PAINT_Annotations")
-    paintfile = os.path.join(paintdir, "PAINT_Annotatations_TOTAL.txt")
 
     families = {}
     with open(paintfile, "rt") as fh:
@@ -500,26 +543,8 @@ def prepare(args):
                 sys.stderr.write("\t{:,} lines processed\n".format(i+1))
 
     for fam_id, obj in families.items():
-        with open(os.path.join(paintdir, fam_id + ".json"), "wt") as fh:
+        with open(os.path.join(output_dir, fam_id + ".json"), "wt") as fh:
             json.dump(obj, fh)
-
-    sys.stderr.write("Updating sequences\n")
-    msfdir = os.path.join(datadir, "Tree_MSF")
-    for name in os.listdir(msfdir):
-        if name.endswith(".fasta"):
-            src = os.path.join(msfdir, name)
-            dst = src + ".tmp"
-            with open(src, "rt") as fh1, open(dst, "wt") as fh2:
-                for line in fh1:
-                    if line[0] == ">":
-                        fh2.write(line)
-                    else:
-                        # Replace Selenocysteine (U) and Pyrrolysine (O) AA
-                        # by the undetermined AA character (X).
-                        fh2.write(re.sub(r"[UO]", r"X", line.upper()))
-
-            os.unlink(src)
-            os.rename(dst, src)
 
 
 def run(args):
@@ -531,9 +556,13 @@ def run(args):
         sys.stderr.write("Error: {}: "
                          "no such file.\n".format(args.hmmsearch))
         sys.exit(1)
-    elif not os.path.isdir(args.datadir):
+    elif not os.path.isdir(args.libdir):
         sys.stderr.write("Error: {}: "
-                         "no such directory.\n".format(args.datadir))
+                         "no such directory.\n".format(args.libdir))
+        sys.exit(1)
+    elif not os.path.isdir(args.annotdir):
+        sys.stderr.write("Error: {}: "
+                         "no such directory.\n".format(args.annotdir))
         sys.exit(1)
 
     matches = parsehmmsearch(args.hmmsearch)
@@ -550,14 +579,19 @@ def run(args):
     else:
         fh = open(args.output, "wt")
 
-    fh.write("query_id\tpanther_id\tscore\tevalue\tdom_score\tdom_evalue\t"
-             "hmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\t"
-             "node_id\n")
+    header = ("query_id\tpanther_id\tscore\tevalue\tdom_score\tdom_evalue\t"
+              "hmm_start\thmm_end\tali_start\tali_end\tenv_start\tenv_end\t"
+              "node_id")
+    if args.print_go:
+        header += "\tgo_terms\tprotein_class"
+    fh.write(header + "\n")
 
     try:
-        results = process_matches_epang(matches, args.datadir, tempdir,
+        results = process_matches_epang(matches, args.libdir, args.annotdir,
+                                        tempdir,
                                         binary=args.epang,
-                                        threads=args.threads)
+                                        threads=args.threads,
+                                        print_go=args.print_go)
 
         for hit in results:
             fh.write("\t".join(map(str, hit)) + "\n")
@@ -578,13 +612,24 @@ protein sequences, using annotated phylogenetic trees.
     subparsers = parser.add_subparsers()
 
     parser_pre = subparsers.add_parser("prepare")
-    parser_pre.add_argument("datadir", help="PANTHER/TreeGrafter data directory")
+    parser_pre.add_argument("annotation_file",
+                            help="PAINT annotation file "
+                                 "(e.g. PAINT_Annotations_TOTAL.txt)")
+    parser_pre.add_argument("output_dir",
+                            help="output directory for per-family JSON files")
     parser_pre.set_defaults(func=prepare)
 
     parser_run = subparsers.add_parser("run")
     parser_run.add_argument("fasta", help="fasta file")
     parser_run.add_argument("hmmsearch", help="hmmsearch output file")
-    parser_run.add_argument("datadir", help="TreeGrafter data directory")
+    parser_run.add_argument("-d", dest="libdir", required=True,
+                            metavar="DIR",
+                            help="PANTHER library directory "
+                                 "(containing Tree_MSF/ and famhmm/)")
+    parser_run.add_argument("-a", dest="annotdir", required=True,
+                            metavar="DIR",
+                            help="directory containing per-family annotation "
+                                 "JSON files (output of 'prepare')")
     parser_run.add_argument("-e", dest="evalue", type=float,
                             metavar="FLOAT", help="e-value cutoff")
     parser_run.add_argument("-o", dest="output", metavar="FILE",
@@ -599,6 +644,8 @@ protein sequences, using annotated phylogenetic trees.
                             default=tempfile.gettempdir())
     parser_run.add_argument("--keep", action="store_true",
                             help="keep temporary directory")
+    parser_run.add_argument("--print-go", action="store_true",
+                            help="include GO terms and protein class in output")
     parser_run.set_defaults(func=run)
 
     args = parser.parse_args()
