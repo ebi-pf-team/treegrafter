@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "treegrafter"
+version = "0.1.0"
+description = "InterPro's TreeGrafter: annotates protein sequences by grafting them onto PANTHER's annotated family trees with EPA-ng"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = ["biopython>=1.86"]
+
+[project.urls]
+Repository = "https://github.com/ebi-pf-team/treegrafter"
+
+[project.scripts]
+treegrafter = "treegrafter:main"
+
+[tool.setuptools]
+# The one module. Listed explicitly, so Test/, tests/ and .plans/ are never packaged.
+py-modules = ["treegrafter"]
